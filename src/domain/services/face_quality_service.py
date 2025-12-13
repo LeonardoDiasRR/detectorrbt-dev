@@ -3,6 +3,7 @@ Serviço de domínio para cálculo de qualidade facial.
 """
 
 from typing import Optional
+from functools import lru_cache
 import numpy as np
 import cv2
 

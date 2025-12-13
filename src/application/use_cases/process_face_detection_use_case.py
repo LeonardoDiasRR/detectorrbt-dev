@@ -265,7 +265,7 @@ class ProcessFaceDetectionUseCase:
             detected_track_ids.add(track_id)
             
             # OTIMIZAÇÃO: Usa buffer preallocado para bbox
-            box.xyxy[0].cpu().numpy(out=self.bbox_buffer)
+            np.copyto(self.bbox_buffer, box.xyxy[0].cpu().numpy())
             x1, y1, x2, y2 = self.bbox_buffer.astype(int)
             
             # Valida limites
