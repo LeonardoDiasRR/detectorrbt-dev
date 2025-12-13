@@ -410,7 +410,7 @@ class ProcessFaceDetectionUseCase:
                     self.logger.error(f"Erro ao enfileirar evento FindFace: {e}")
         else:
             # Log de track descartado (sempre registra)
-            self.logger.info(
+            self.logger.warning(
                 f"✗ Track {track_id} descartado | "
                 f"Razão: {invalid_reason}, "
                 f"Eventos: {total_events}, "
