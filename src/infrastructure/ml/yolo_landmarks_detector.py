@@ -79,3 +79,11 @@ class YOLOLandmarksDetector(ILandmarksDetector):
         :return: Dicionário com informações do modelo.
         """
         return self.model.get_model_info()
+    
+    def get_num_keypoints(self) -> int:
+        """
+        Retorna o número de keypoints (landmarks) que o modelo detecta.
+        
+        :return: Número de landmarks.
+        """
+        return self.model.get_num_keypoints()

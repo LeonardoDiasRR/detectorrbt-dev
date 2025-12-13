@@ -35,6 +35,26 @@ class ILandmarksModel(ABC):
         pass
     
     @abstractmethod
+    def predict_batch(
+        self,
+        face_crops: list,
+        conf: float = 0.5,
+        verbose: bool = False
+    ) -> list:
+        """
+        Executa inferência de landmarks em múltiplos crops de face (batch processing).
+        OTIMIZAÇÃO CRÍTICA: Processa múltiplas faces em um único batch para maximizar GPU.
+        
+        :param face_crops: Lista de imagens de faces (crops) em formato BGR (numpy arrays).
+        :param conf: Threshold de confiança mínima para detecção.
+        :param verbose: Se deve exibir logs detalhados.
+        :return: Lista de tuplas (landmarks, confidence) ou None para cada crop.
+                 - landmarks: array numpy de shape (N, 2) com coordenadas dos landmarks
+                 - confidence: confiança da detecção (0.0 a 1.0)
+        """
+        pass
+    
+    @abstractmethod
     def get_model_info(self) -> dict:
         """
         Retorna informações sobre o modelo de landmarks carregado.
