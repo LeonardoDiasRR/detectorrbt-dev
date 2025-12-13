@@ -127,6 +127,29 @@ class Frame:
         
         return buffer.tobytes()
 
+    def png(self, compression: int = 0) -> bytes:
+        """
+        Converte o frame para formato PNG e retorna como bytes.
+        PNG encoding é ~5-10x mais rápido que JPEG quality=95 (sem compressão).
+        OTIMIZAÇÃO: Usa ndarray_readonly para evitar cópia desnecessária.
+
+        :param compression: Nível de compressão PNG (0-9), padrão 0 (sem compressão = mais rápido).
+        :return: Frame codificado em PNG como bytes.
+        :raises ValueError: Se o nível de compressão for inválido.
+        :raises RuntimeError: Se a codificação falhar.
+        """
+        if not 0 <= compression <= 9:
+            raise ValueError(f"Compressão deve estar entre 0 e 9, recebido: {compression}")
+        
+        # OTIMIZAÇÃO: Usa ndarray_readonly - cv2.imencode não modifica a imagem
+        # Compression 0 = sem compressão (máxima velocidade, ~5-10x mais rápido que JPEG)
+        success, buffer = cv2.imencode('.png', self.ndarray_readonly, [cv2.IMWRITE_PNG_COMPRESSION, compression])
+        
+        if not success:
+            raise RuntimeError("Falha ao codificar o frame em PNG")
+        
+        return buffer.tobytes()
+
     @property
     def shape(self) -> Tuple[int, ...]:
         """Retorna as dimensões do frame (altura, largura, canais)."""

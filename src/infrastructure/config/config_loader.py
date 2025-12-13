@@ -157,7 +157,8 @@ class ConfigLoader:
         performance_config = PerformanceConfig(
             inference_size=yaml_config.get("performance", {}).get("inference_size", 640),
             detection_skip_frames=yaml_config.get("performance", {}).get("detection_skip_frames", 1),
-            findface_queue_size=yaml_config.get("performance", {}).get("findface_queue_size", 200)
+            findface_queue_size=yaml_config.get("performance", {}).get("findface_queue_size", 200),
+            jpeg_compression=yaml_config.get("performance", {}).get("jpeg_compression", 95)
         )
         
         # Carrega câmeras do YAML

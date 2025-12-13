@@ -94,6 +94,7 @@ class PerformanceConfig:
     inference_size: int = 640
     detection_skip_frames: int = 1
     findface_queue_size: int = 200  # Tamanho da fila assíncrona FindFace
+    jpeg_compression: int = 95  # Qualidade JPEG para envio ao FindFace (0-100)
 
 
 @dataclass

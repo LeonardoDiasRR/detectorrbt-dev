@@ -478,8 +478,12 @@ if __name__ == "__main__":
         # Cria cliente FindFace
         ff = create_findface_client(settings.findface)
         
-        # Cria adapter do FindFace
-        findface_adapter = FindfaceAdapter(ff, camera_prefix=settings.findface.camera_prefix)
+        # Cria adapter do FindFace com qualidade JPEG configurável
+        findface_adapter = FindfaceAdapter(
+            ff, 
+            camera_prefix=settings.findface.camera_prefix,
+            jpeg_quality=settings.performance.jpeg_compression
+        )
         
         # Executa aplicação
         main(settings, findface_adapter)

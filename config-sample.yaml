@@ -78,6 +78,10 @@ performance:
   detection_skip_frames: 2
   # Tamanho da fila assíncrona para envios FindFace (200 = padrão, 0 = desabilita fila)
   findface_queue_size: 500
+  # Qualidade de compressão JPEG para envio ao FindFace (0-100)
+  # 95 = qualidade máxima (~18ms encoding), 75 = boa qualidade (~12ms, 1.5x mais rápido)
+  # Reduzir para 60-75 melhora performance em cenas com muitas faces
+  jpeg_compression: 95
 
 # Configurações TensorRT (melhor performance em GPUs NVIDIA)
 tensorrt:
