@@ -81,7 +81,6 @@ if __name__ == "__main__":
     
     print("\n=== Testando get_config ===")
     print(f"GPU Index: {get_config('gpu_index', 0)}")
-    print(f"Batch Size GPU: {get_config('gpu_batch_size', 32)}")
     print(f"Verbose Log: {get_config('verbose_log', False)}")
     print(f"Tamanho BBox (aninhado): {get_config('qualidade_face.tamanho_bbox', 2)}")
     print(f"Chave inexistente: {get_config('chave_inexistente', 'valor_padrao')}")

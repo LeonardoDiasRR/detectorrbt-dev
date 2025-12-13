@@ -87,7 +87,6 @@ class ProcessFaceDetectionUseCase:
         :param image_save_service: Serviço para salvamento assíncrono de imagens.
         :param face_quality_service: Serviço para cálculo de qualidade facial.
         :param tracker_config: Configuração do ByteTrack.
-        :param batch_size: Tamanho do batch.
         :param show_video: Se deve exibir vídeo (debug).
         :param conf_threshold: Threshold de confiança mínima.
         :param iou_threshold: Threshold de IoU para NMS.
@@ -124,7 +123,6 @@ class ProcessFaceDetectionUseCase:
         
         # Configurações
         self.tracker_config = tracker_config
-        self.batch_size = batch_size
         self.conf_threshold = conf_threshold
         self.iou_threshold = iou_threshold
         self.max_frames_lost = max_frames_lost
@@ -199,7 +197,6 @@ class ProcessFaceDetectionUseCase:
             conf_threshold=self.conf_threshold,
             iou_threshold=self.iou_threshold,
             inference_size=self.inference_size,
-            batch=self.batch_size,
             show=self.show_video
         ):
             if not self.running:

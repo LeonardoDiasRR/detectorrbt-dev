@@ -110,8 +110,6 @@ class ConfigLoader:
         
         processing_config = ProcessingConfig(
             gpu_devices=gpu_devices,
-            gpu_batch_size=yaml_config.get("gpu_batch_size", 32),
-            cpu_batch_size=yaml_config.get("cpu_batch_size", 4),
             show_video=yaml_config.get("show", True),
             verbose_log=yaml_config.get("verbose_log", False)
         )

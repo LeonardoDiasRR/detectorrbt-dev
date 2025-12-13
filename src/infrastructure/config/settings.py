@@ -47,8 +47,6 @@ class FindFaceConfig:
 class ProcessingConfig:
     """Configuração de processamento."""
     gpu_devices: List[int] = None
-    gpu_batch_size: int = 32
-    cpu_batch_size: int = 4
     
     def __post_init__(self):
         """Inicializa valores padrão após criação."""
@@ -144,10 +142,3 @@ class AppSettings:
         if torch.cuda.is_available():
             return f"cuda:{self.processing.gpu_devices[0]}"
         return "cpu"
-    
-    @property
-    def batch_size(self) -> int:
-        """Retorna o batch size baseado no dispositivo."""
-        if self.device.startswith("cuda"):
-            return self.processing.gpu_batch_size
-        return self.processing.cpu_batch_size
