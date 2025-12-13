@@ -4,7 +4,7 @@ Define o contrato que implementações concretas devem seguir.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 import numpy as np
 
 
@@ -29,6 +29,24 @@ class ILandmarksDetector(ABC):
         :param verbose: Se deve exibir logs detalhados.
         :return: Tupla (landmarks_array, confidence) ou None se não detectou.
                  landmarks_array tem shape (num_keypoints, 2) com coordenadas (x, y).
+        """
+        pass
+    
+    @abstractmethod
+    def predict_batch(
+        self,
+        face_crops: List[np.ndarray],
+        conf: float = 0.5,
+        verbose: bool = False
+    ) -> List[Optional[Tuple[np.ndarray, float]]]:
+        """
+        Detecta landmarks em múltiplos crops de face (batch).
+        OTIMIZAÇÃO: Processa múltiplas faces em um único batch para GPU.
+        
+        :param face_crops: Lista de crops de face (numpy arrays BGR).
+        :param conf: Threshold de confiança mínima.
+        :param verbose: Se deve exibir logs detalhados.
+        :return: Lista de tuplas (landmarks_array, confidence) ou None para cada crop.
         """
         pass
 

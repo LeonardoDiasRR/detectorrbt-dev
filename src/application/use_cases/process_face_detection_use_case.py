@@ -6,9 +6,11 @@ Orquestra o fluxo completo de detecção, tracking e envio ao FindFace.
 import logging
 import threading
 from queue import Queue
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Tuple
 from collections import defaultdict
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, Future
+import numpy as np
 
 from src.domain.entities import Camera, Track
 from src.domain.interfaces import IFaceDetector, ILandmarksDetector
@@ -139,6 +141,12 @@ class ProcessFaceDetectionUseCase:
         self.track_frame_count: Dict[int, int] = defaultdict(int)
         self.frame_count = 0
         
+        # OTIMIZAÇÃO: Thread pool para inferência paralela de landmarks
+        self.landmarks_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="LandmarksWorker")
+        
+        # OTIMIZAÇÃO: Buffer preallocado para bboxes (evita alocações repetidas)
+        self.bbox_buffer = np.empty(4, dtype=np.float32)
+        
         # Logger
         self.logger = logging.getLogger(
             f"{self.__class__.__name__}-{camera.camera_name.value()}"
@@ -240,7 +248,15 @@ class ProcessFaceDetectionUseCase:
         # IDs dos tracks detectados neste frame
         detected_track_ids = set()
         
-        # Processa cada detecção
+        # OTIMIZAÇÃO: Batch inference de landmarks
+        # Coleta todos os crops de face primeiro
+        face_crops: List[np.ndarray] = []
+        track_ids: List[int] = []
+        bboxes: List[np.ndarray] = []
+        confidences: List[float] = []
+        
+        h, w = frame_vo.ndarray_readonly.shape[:2]
+        
         for i, box in enumerate(boxes):
             track_id = int(box.id[0]) if box.id is not None else None
             if track_id is None:
@@ -248,36 +264,50 @@ class ProcessFaceDetectionUseCase:
             
             detected_track_ids.add(track_id)
             
-            # Extrai bbox e faz crop da face para inferência de landmarks
-            bbox = box.xyxy[0].cpu().numpy()
-            x1, y1, x2, y2 = map(int, bbox)
+            # OTIMIZAÇÃO: Usa buffer preallocado para bbox
+            box.xyxy[0].cpu().numpy(out=self.bbox_buffer)
+            x1, y1, x2, y2 = self.bbox_buffer.astype(int)
             
-            # Crop da face (com validação de limites)
-            h, w = frame_vo.ndarray_readonly.shape[:2]
+            # Valida limites
             x1, y1 = max(0, x1), max(0, y1)
             x2, y2 = min(w, x2), min(h, y2)
             
+            # Crop da face
             face_crop = frame_vo.ndarray_readonly[y1:y2, x1:x2]
             
-            # Inferência de landmarks com modelo yolov8n-face.pt
-            landmarks_result = None
-            if self.landmarks_detector is not None and face_crop.size > 0:
-                try:
-                    landmarks_result = self.landmarks_detector.predict(
-                        face_crop=face_crop,
-                        conf=self.conf_threshold,
-                        verbose=False
-                    )
-                except Exception as e:
-                    self.logger.warning(f"Erro na inferência de landmarks para track {track_id}: {e}")
-            
-            # Cria evento a partir da detecção (com landmarks inferidos separadamente)
+            if face_crop.size > 0:
+                face_crops.append(face_crop)
+                track_ids.append(track_id)
+                bboxes.append(self.bbox_buffer.copy())
+                confidences.append(float(box.conf[0]))
+        
+        # OTIMIZAÇÃO: Inferência em lote (batch) de landmarks
+        landmarks_results = []
+        if self.landmarks_detector is not None and len(face_crops) > 0:
+            try:
+                # Processa todos os crops de uma vez (GPU efficiency)
+                landmarks_results = self.landmarks_detector.predict_batch(
+                    face_crops=face_crops,
+                    conf=self.conf_threshold,
+                    verbose=False
+                )
+            except Exception as e:
+                self.logger.warning(f"Erro na inferência em lote de landmarks: {e}")
+                landmarks_results = [None] * len(face_crops)
+        else:
+            landmarks_results = [None] * len(face_crops)
+        
+        # Cria eventos para todas as detecções
+        for i, (track_id, bbox, confidence, landmarks_result) in enumerate(
+            zip(track_ids, bboxes, confidences, landmarks_results)
+        ):
+            # Cria evento a partir da detecção
             event = self.event_creation_service.create_event_from_detection(
                 camera=self.camera,
                 detection_box=bbox,
-                confidence=float(box.conf[0]),
+                confidence=confidence,
                 track_id=track_id,
-                keypoints=landmarks_result,  # Agora usa landmarks do yolov8n-face.pt
+                keypoints=landmarks_result,
                 frame_entity=frame_vo,
                 index=i
             )

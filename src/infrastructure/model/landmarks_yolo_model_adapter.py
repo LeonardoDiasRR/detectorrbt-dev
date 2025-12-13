@@ -4,7 +4,7 @@ Adapter para modelos YOLO de detecção de landmarks faciais.
 Implementa a interface ILandmarksModel usando Ultralytics YOLO.
 """
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 import numpy as np
 from ultralytics import YOLO
 
@@ -131,3 +131,64 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         :return: Número de landmarks.
         """
         return self._num_keypoints
+    
+    def predict_batch(
+        self,
+        face_crops: List[np.ndarray],
+        conf: float = 0.5,
+        verbose: bool = False
+    ) -> List[Optional[Tuple[np.ndarray, float]]]:
+        """
+        Executa inferência em lote para múltiplos crops de face.
+        OTIMIZAÇÃO: Processa múltiplas faces em um único batch para GPU.
+        
+        :param face_crops: Lista de crops de face (arrays numpy).
+        :param conf: Confiança mínima para detecção.
+        :param verbose: Se True, exibe informações de debug.
+        :return: Lista de tuplas (landmarks, confidence) ou None para cada crop.
+        """
+        if not face_crops:
+            return []
+        
+        try:
+            # YOLO aceita lista de imagens para batch inference
+            results = self.model(face_crops, conf=conf, verbose=verbose)
+            
+            batch_landmarks = []
+            
+            for result in results:
+                # Valida resultado individual
+                if result.boxes is None or len(result.boxes) == 0:
+                    batch_landmarks.append(None)
+                    continue
+                
+                # Pega a primeira detecção (mais confiante)
+                box = result.boxes[0]
+                confidence = float(box.conf[0])
+                
+                # Extrai keypoints
+                if result.keypoints is None or len(result.keypoints) == 0:
+                    batch_landmarks.append(None)
+                    continue
+                
+                kpts = result.keypoints[0].xy.cpu().numpy()
+                
+                if kpts.shape[0] == 0:
+                    batch_landmarks.append(None)
+                    continue
+                
+                landmarks = kpts[0]  # Shape: (N, 2)
+                
+                if len(landmarks) == 0:
+                    batch_landmarks.append(None)
+                    continue
+                
+                batch_landmarks.append((landmarks, confidence))
+            
+            return batch_landmarks
+            
+        except Exception as e:
+            if verbose:
+                print(f"Erro na inferência em lote de landmarks: {e}")
+            # Retorna None para todos os crops em caso de erro
+            return [None] * len(face_crops)

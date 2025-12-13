@@ -2,7 +2,7 @@
 Implementação concreta de ILandmarksDetector usando YOLO (Infrastructure Layer).
 """
 
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, List
 import numpy as np
 from src.domain.interfaces import ILandmarksDetector
 
@@ -46,6 +46,31 @@ class YOLOLandmarksDetector(ILandmarksDetector):
         )
         
         return result  # Retorna (landmarks_array, confidence) ou None
+    
+    def predict_batch(
+        self,
+        face_crops: List[np.ndarray],
+        conf: float = 0.5,
+        verbose: bool = False
+    ) -> List[Optional[Tuple[np.ndarray, float]]]:
+        """
+        Detecta landmarks em múltiplos crops de face usando YOLO (batch).
+        OTIMIZAÇÃO: Processa múltiplas faces em um único batch para GPU.
+        
+        :param face_crops: Lista de crops de face (numpy arrays BGR).
+        :param conf: Threshold de confiança mínima.
+        :param verbose: Se deve exibir logs detalhados.
+        :return: Lista de tuplas (landmarks_array, confidence) ou None para cada crop.
+        """
+        if not face_crops:
+            return []
+        
+        # Chama predict_batch do modelo YOLO de landmarks
+        return self.model.predict_batch(
+            face_crops=face_crops,
+            conf=conf,
+            verbose=verbose
+        )
 
     def get_model_info(self) -> dict:
         """
