@@ -374,6 +374,13 @@ class ProcessFaceDetectionUseCase:
         if track is None:
             return
         
+        # Coleta informações do track para log
+        summary = self.track_lifecycle_service.get_track_summary(track)
+        has_movement = track.has_movement
+        total_events = summary['event_count']
+        best_quality = summary['best_quality']
+        best_confidence = summary['best_confidence']
+        
         # Valida track
         is_valid, invalid_reason = self.track_validation_service.is_valid(track)
         
@@ -391,24 +398,26 @@ class ProcessFaceDetectionUseCase:
                         track.event_count
                     ))
                     
-                    if self.verbose_log:
-                        summary = self.track_lifecycle_service.get_track_summary(track)
-                        self.logger.info(
-                            f"✓ Track {track_id} enviado ao FindFace | "
-                            f"Eventos: {summary['event_count']}, "
-                            f"Qualidade: {summary['best_quality']:.4f}, "
-                            f"Confiança: {summary['best_confidence']:.2f}"
-                        )
+                    # Log de track enviado (sempre registra, não apenas em verbose)
+                    self.logger.info(
+                        f"✓ Track {track_id} enviado | "
+                        f"Eventos: {total_events}, "
+                        f"Movimento: {'Sim' if has_movement else 'Não'}, "
+                        f"Qualidade: {best_quality:.4f}, "
+                        f"Confiança: {best_confidence:.2f}"
+                    )
                 except Exception as e:
                     self.logger.error(f"Erro ao enfileirar evento FindFace: {e}")
         else:
-            if self.verbose_log:
-                total_frames = self.track_frame_count.get(track_id, 0)
-                self.logger.debug(
-                    f"✗ Track {track_id} descartado | "
-                    f"Razão: {invalid_reason} | "
-                    f"Frames: {total_frames}, Eventos: {track.event_count}"
-                )
+            # Log de track descartado (sempre registra)
+            self.logger.info(
+                f"✗ Track {track_id} descartado | "
+                f"Razão: {invalid_reason}, "
+                f"Eventos: {total_events}, "
+                f"Movimento: {'Sim' if has_movement else 'Não'}, "
+                f"Qualidade: {best_quality:.4f}, "
+                f"Confiança: {best_confidence:.2f}"
+            )
         
         # Remove track
         del self.active_tracks[track_id]
