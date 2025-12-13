@@ -1,0 +1,17 @@
+# pyTorch com CUDA 12
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# onnxruntime-gpu
+pip install onnxruntime-gpu
+
+# pyTorch com CPU
+pip install torch torchvision torchaudio
+
+# TensorRT (se disponível via pip para CUDA 12.1)
+pip install nvidia-tensorrt
+
+# Demais requisitos
+pip install -r requirements.txt
+
+# Se já houver uma versão incompatível do NumPy (2.x), reinstale a versão 1.x explicitamente:
+# pip install --force-reinstall "numpy<2"
