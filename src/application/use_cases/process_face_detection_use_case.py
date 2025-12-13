@@ -398,14 +398,15 @@ class ProcessFaceDetectionUseCase:
                         track.event_count
                     ))
                     
-                    # Log de track enviado (sempre registra, não apenas em verbose)
-                    self.logger.info(
-                        f"✓ Track {track_id} enviado | "
-                        f"Eventos: {total_events}, "
-                        f"Movimento: {'Sim' if has_movement else 'Não'}, "
-                        f"Qualidade: {best_quality:.4f}, "
-                        f"Confiança: {best_confidence:.2f}"
-                    )
+                    # Log de track enviado (apenas em modo verbose)
+                    if self.verbose_log:
+                        self.logger.info(
+                            f"✓ Track {track_id} enviado para a fila do Findface | "
+                            f"Eventos: {total_events}, "
+                            f"Movimento: {'Sim' if has_movement else 'Não'}, "
+                            f"Qualidade: {best_quality:.4f}, "
+                            f"Confiança: {best_confidence:.2f}"
+                        )
                 except Exception as e:
                     self.logger.error(f"Erro ao enfileirar evento FindFace: {e}")
         else:
