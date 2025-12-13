@@ -4,7 +4,7 @@ Contém regras de negócio para criar eventos a partir de detecções YOLO.
 """
 
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 import numpy as np
 from src.domain.entities import Event, Camera, Frame
 from src.domain.value_objects import (
@@ -52,7 +52,7 @@ class EventCreationService:
         detection_box: np.ndarray,
         confidence: float,
         track_id: int,
-        keypoints: Optional[np.ndarray],
+        keypoints: Optional[Tuple[np.ndarray, float]],
         frame_entity: FullFrameVO,
         index: int = 0
     ) -> Event:
@@ -63,9 +63,9 @@ class EventCreationService:
         :param detection_box: Bbox da detecção [x1, y1, x2, y2].
         :param confidence: Confiança da detecção.
         :param track_id: ID do track.
-        :param keypoints: Keypoints detectados (opcional).
+        :param keypoints: Tuple (landmarks_array, confidence) do landmarks_detector ou None.
         :param frame_entity: FullFrameVO com o frame completo.
-        :param index: Índice da detecção no resultado YOLO.
+        :param index: Índice da detecção no resultado YOLO (não usado mais).
         :return: Entidade Event criada.
         """
         # 1. Cria Value Objects
@@ -77,9 +77,11 @@ class EventCreationService:
         
         # 2. Extrai landmarks (se disponível)
         landmarks_vo = None
-        if keypoints is not None and len(keypoints) > index:
-            kpts = keypoints[index].xy[0].cpu().numpy()
-            landmarks_vo = LandmarksVO(kpts)
+        if keypoints is not None:
+            # keypoints agora é Tuple[np.ndarray, float] do landmarks_detector
+            landmarks_array, landmarks_conf = keypoints
+            if landmarks_array is not None and len(landmarks_array) > 0:
+                landmarks_vo = LandmarksVO(landmarks_array)
         
         # 3. Calcula qualidade facial
         face_quality_score = 0.0

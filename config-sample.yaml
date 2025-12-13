@@ -80,10 +80,6 @@ performance:
   inference_size: 1280
   # Processa detecções a cada N frames (1 = todos os frames)
   detection_skip_frames: 2
-  # Máximo de workers para processamento paralelo (0 = automático)
-  max_parallel_workers: 0
-  # Ativa batch processing de qualidade facial
-  batch_quality_calculation: true
   # Tamanho da fila assíncrona para envios FindFace (200 = padrão, 0 = desabilita fila)
   findface_queue_size: 500
 

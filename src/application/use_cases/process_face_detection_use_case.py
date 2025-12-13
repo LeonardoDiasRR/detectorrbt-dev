@@ -248,13 +248,36 @@ class ProcessFaceDetectionUseCase:
             
             detected_track_ids.add(track_id)
             
-            # Cria evento a partir da detecção
+            # Extrai bbox e faz crop da face para inferência de landmarks
+            bbox = box.xyxy[0].cpu().numpy()
+            x1, y1, x2, y2 = map(int, bbox)
+            
+            # Crop da face (com validação de limites)
+            h, w = frame_vo.ndarray_readonly.shape[:2]
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(w, x2), min(h, y2)
+            
+            face_crop = frame_vo.ndarray_readonly[y1:y2, x1:x2]
+            
+            # Inferência de landmarks com modelo yolov8n-face.pt
+            landmarks_result = None
+            if self.landmarks_detector is not None and face_crop.size > 0:
+                try:
+                    landmarks_result = self.landmarks_detector.predict(
+                        face_crop=face_crop,
+                        conf=self.conf_threshold,
+                        verbose=False
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Erro na inferência de landmarks para track {track_id}: {e}")
+            
+            # Cria evento a partir da detecção (com landmarks inferidos separadamente)
             event = self.event_creation_service.create_event_from_detection(
                 camera=self.camera,
-                detection_box=box.xyxy[0].cpu().numpy(),
+                detection_box=bbox,
                 confidence=float(box.conf[0]),
                 track_id=track_id,
-                keypoints=result.keypoints if hasattr(result, 'keypoints') else None,
+                keypoints=landmarks_result,  # Agora usa landmarks do yolov8n-face.pt
                 frame_entity=frame_vo,
                 index=i
             )
