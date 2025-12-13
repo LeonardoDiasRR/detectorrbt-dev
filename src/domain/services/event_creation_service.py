@@ -100,23 +100,25 @@ class EventCreationService:
             if landmarks_array is not None and len(landmarks_array) > 0:
                 landmarks_vo = LandmarksVO(landmarks_array)
         
-        # 3. Calcula qualidade facial
+        # 3. Cria Frame entity UMA VEZ (OTIMIZAÇÃO: evita duplicação)
+        # ANTES: criava temp_frame para qualidade + frame_entity_obj para evento (2x overhead)
+        # AGORA: cria uma vez e reutiliza
+        frame_id = self._get_next_frame_id()
+        frame_entity_obj = Frame(
+            id=IdVO(frame_id),
+            full_frame=frame_entity,
+            camera_id=camera.camera_id,
+            camera_name=camera.camera_name,
+            camera_token=camera.camera_token,
+            timestamp=timestamp_vo
+        )
+        
+        # 4. Calcula qualidade facial (reutiliza frame_entity_obj)
         face_quality_score = 0.0
         if self.face_quality_service is not None and landmarks_vo is not None:
             try:
-                # OTIMIZAÇÃO: frame_id sequencial (mais rápido que hash)
-                frame_id = self._get_next_frame_id()
-                temp_frame = Frame(
-                    id=IdVO(frame_id),
-                    full_frame=frame_entity,
-                    camera_id=camera.camera_id,
-                    camera_name=camera.camera_name,
-                    camera_token=camera.camera_token,
-                    timestamp=timestamp_vo
-                )
-                
                 quality_vo = FaceQualityService.calculate_quality(
-                    frame=temp_frame,
+                    frame=frame_entity_obj,
                     bbox=bbox_vo,
                     confidence=confidence_vo,
                     landmarks=landmarks_vo,
@@ -129,17 +131,6 @@ class EventCreationService:
                 face_quality_score = quality_vo.value()
             except Exception as e:
                 self.logger.debug(f"Erro ao calcular qualidade facial: {e}")
-        
-        # 4. Cria Frame entity
-        frame_id = self._get_next_frame_id()
-        frame_entity_obj = Frame(
-            id=IdVO(frame_id),
-            full_frame=frame_entity,
-            camera_id=camera.camera_id,
-            camera_name=camera.camera_name,
-            camera_token=camera.camera_token,
-            timestamp=timestamp_vo
-        )
         
         # 5. Cria Event
         event_id = abs(hash(f"{camera.camera_id.value()}_{track_id}_{frame_entity.timestamp.value()}")) % (10**9)
