@@ -275,7 +275,15 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         min_bbox_width=settings.detection_filter.min_bbox_width
     )
     
-    event_creation_service = EventCreationService()
+    # EventCreationService com pesos configurados
+    event_creation_service = EventCreationService(
+        peso_confianca=settings.face_quality.peso_confianca,
+        peso_tamanho=settings.face_quality.peso_tamanho,
+        peso_frontal=settings.face_quality.peso_frontal,
+        peso_proporcao=settings.face_quality.peso_proporcao,
+        peso_nitidez=settings.face_quality.peso_nitidez
+    )
+    
     movement_detection_service = MovementDetectionService(
         min_movement_threshold=settings.movement.min_movement_threshold_pixels
     )
@@ -359,6 +367,10 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
                 face_detector=face_detector,
                 findface_adapter=findface_adapter,
                 findface_queue=findface_queue,  # Fila global compartilhada
+                event_creation_service=event_creation_service,
+                movement_detection_service=movement_detection_service,
+                track_validation_service=track_validation_service,
+                track_lifecycle_service=track_lifecycle_service,
                 landmarks_detector=landmarks_detector,
                 landmarks_queue=None,  # TODO: implementar se necessário
                 landmarks_results_cache=None,

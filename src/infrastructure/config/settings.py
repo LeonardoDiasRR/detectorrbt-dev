@@ -81,12 +81,20 @@ class DetectionFilterConfig:
 
 
 @dataclass
+class FaceQualityConfig:
+    """Configuração de pesos para cálculo de qualidade facial."""
+    peso_confianca: float = 3.0
+    peso_tamanho: float = 4.0
+    peso_frontal: float = 6.0
+    peso_proporcao: float = 1.0
+    peso_nitidez: float = 1.0
+
+
+@dataclass
 class PerformanceConfig:
     """Configuração de otimizações de performance."""
     inference_size: int = 640
     detection_skip_frames: int = 1
-    max_parallel_workers: int = 0
-    batch_quality_calculation: bool = True
     findface_queue_size: int = 200  # Tamanho da fila assíncrona FindFace
 
 
@@ -119,6 +127,7 @@ class AppSettings:
     storage: StorageConfig
     movement: MovementConfig
     detection_filter: DetectionFilterConfig
+    face_quality: FaceQualityConfig
     performance: PerformanceConfig
     tensorrt: TensorRTConfig
     openvino: OpenVINOConfig

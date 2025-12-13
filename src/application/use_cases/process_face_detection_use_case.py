@@ -37,6 +37,10 @@ class ProcessFaceDetectionUseCase:
         face_detector: IFaceDetector,
         findface_adapter: FindfaceAdapter,
         findface_queue: Queue,
+        event_creation_service: EventCreationService,
+        movement_detection_service: MovementDetectionService,
+        track_validation_service: TrackValidationService,
+        track_lifecycle_service: TrackLifecycleService,
         landmarks_detector: Optional[ILandmarksDetector] = None,
         landmarks_queue: Optional[Queue] = None,
         landmarks_results_cache: Optional[Dict] = None,
@@ -69,6 +73,10 @@ class ProcessFaceDetectionUseCase:
         :param face_detector: Implementação de IFaceDetector.
         :param findface_adapter: Adapter para envio ao FindFace.
         :param findface_queue: Fila global compartilhada do FindFace.
+        :param event_creation_service: Serviço de criação de eventos (pré-configurado).
+        :param movement_detection_service: Serviço de detecção de movimento.
+        :param track_validation_service: Serviço de validação de tracks.
+        :param track_lifecycle_service: Serviço de ciclo de vida de tracks.
         :param landmarks_detector: Implementação opcional de ILandmarksDetector.
         :param landmarks_queue: Fila global compartilhada de landmarks.
         :param landmarks_results_cache: Cache global de resultados de landmarks.
@@ -106,16 +114,11 @@ class ProcessFaceDetectionUseCase:
         self.gpu_id = gpu_id
         self.image_save_service = image_save_service
         
-        # Domain Services
-        self.event_creation_service = EventCreationService(face_quality_service)
-        self.movement_detection_service = MovementDetectionService(min_movement_threshold)
-        self.track_validation_service = TrackValidationService(
-            min_movement_threshold=min_movement_threshold,
-            min_movement_percentage=min_movement_percentage,
-            min_confidence_threshold=min_confidence_threshold,
-            min_bbox_width=min_bbox_width
-        )
-        self.track_lifecycle_service = TrackLifecycleService(max_frames_per_track)
+        # Domain Services (injetados já configurados)
+        self.event_creation_service = event_creation_service
+        self.movement_detection_service = movement_detection_service
+        self.track_validation_service = track_validation_service
+        self.track_lifecycle_service = track_lifecycle_service
         
         # Configurações
         self.tracker_config = tracker_config
@@ -195,6 +198,13 @@ class ProcessFaceDetectionUseCase:
                 break
             
             self.frame_count += 1
+            
+            # OTIMIZAÇÃO: Skip frames para economizar processamento
+            # Aplica APÓS inferência do YOLO e ANTES de criar eventos
+            if self.detection_skip_frames > 0:
+                if self.frame_count % (self.detection_skip_frames + 1) != 0:
+                    # Pula processamento deste frame, mas mantém tracking ativo
+                    continue
             
             # Obtém frame do resultado YOLO
             frame = result.orig_img

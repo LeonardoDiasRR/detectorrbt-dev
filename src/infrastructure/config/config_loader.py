@@ -19,6 +19,7 @@ from .settings import (
     StorageConfig,
     CameraConfig,
     DetectionFilterConfig,
+    FaceQualityConfig,
     MovementConfig,
     TensorRTConfig,
     OpenVINOConfig,
@@ -131,6 +132,15 @@ class ConfigLoader:
             min_bbox_width=yaml_config.get("filtro_deteccao", {}).get("largura_minima_bbox", 60)
         )
         
+        # Configuração de Qualidade Facial
+        face_quality_config = FaceQualityConfig(
+            peso_confianca=float(yaml_config.get("qualidade_face", {}).get("confianca_deteccao", 3.0)),
+            peso_tamanho=float(yaml_config.get("qualidade_face", {}).get("tamanho_bbox", 4.0)),
+            peso_frontal=float(yaml_config.get("qualidade_face", {}).get("face_frontal", 6.0)),
+            peso_proporcao=float(yaml_config.get("qualidade_face", {}).get("proporcao_bbox", 1.0)),
+            peso_nitidez=float(yaml_config.get("qualidade_face", {}).get("nitidez", 1.0))
+        )
+        
         # Configuração TensorRT
         tensorrt_config = TensorRTConfig(
             enabled=yaml_config.get("tensorrt", {}).get("enabled", True),
@@ -149,8 +159,6 @@ class ConfigLoader:
         performance_config = PerformanceConfig(
             inference_size=yaml_config.get("performance", {}).get("inference_size", 640),
             detection_skip_frames=yaml_config.get("performance", {}).get("detection_skip_frames", 1),
-            max_parallel_workers=yaml_config.get("performance", {}).get("max_parallel_workers", 0),
-            batch_quality_calculation=yaml_config.get("performance", {}).get("batch_quality_calculation", True),
             findface_queue_size=yaml_config.get("performance", {}).get("findface_queue_size", 200)
         )
         
@@ -173,6 +181,7 @@ class ConfigLoader:
             storage=storage_config,
             movement=movement_config,
             detection_filter=detection_filter_config,
+            face_quality=face_quality_config,
             tensorrt=tensorrt_config,
             openvino=openvino_config,
             performance=performance_config,

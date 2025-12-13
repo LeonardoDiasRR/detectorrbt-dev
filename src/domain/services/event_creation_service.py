@@ -19,13 +19,31 @@ class EventCreationService:
     Aplica regras de negócio: cálculo de qualidade, extração de landmarks, etc.
     """
 
-    def __init__(self, face_quality_service: Optional[FaceQualityService] = None):
+    def __init__(
+        self, 
+        face_quality_service: Optional[FaceQualityService] = None,
+        peso_confianca: float = 3.0,
+        peso_tamanho: float = 4.0,
+        peso_frontal: float = 6.0,
+        peso_proporcao: float = 1.0,
+        peso_nitidez: float = 1.0
+    ):
         """
         Inicializa o serviço de criação de eventos.
         
         :param face_quality_service: Serviço para cálculo de qualidade facial.
+        :param peso_confianca: Peso para score de confiança.
+        :param peso_tamanho: Peso para score de tamanho.
+        :param peso_frontal: Peso para score de frontalidade.
+        :param peso_proporcao: Peso para score de proporção.
+        :param peso_nitidez: Peso para score de nitidez.
         """
         self.face_quality_service = face_quality_service
+        self.peso_confianca = peso_confianca
+        self.peso_tamanho = peso_tamanho
+        self.peso_frontal = peso_frontal
+        self.peso_proporcao = peso_proporcao
+        self.peso_nitidez = peso_nitidez
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def create_event_from_detection(
@@ -82,7 +100,12 @@ class EventCreationService:
                     frame=temp_frame,
                     bbox=bbox_vo,
                     confidence=confidence_vo,
-                    landmarks=landmarks_vo
+                    landmarks=landmarks_vo,
+                    peso_confianca=self.peso_confianca,
+                    peso_tamanho=self.peso_tamanho,
+                    peso_frontal=self.peso_frontal,
+                    peso_proporcao=self.peso_proporcao,
+                    peso_nitidez=self.peso_nitidez
                 )
                 face_quality_score = quality_vo.value()
             except Exception as e:
