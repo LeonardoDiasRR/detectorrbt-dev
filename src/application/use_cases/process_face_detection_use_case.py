@@ -278,12 +278,15 @@ class ProcessFaceDetectionUseCase:
             if track_id is None:
                 continue
             
+            # Adiciona track_id ao set de detectados ANTES dos filtros
+            # Isso mantém o track ativo mesmo quando frames individuais não passam nos filtros
+            detected_track_ids.add(track_id)
+            
             # FILTRO 1: Verifica confiança mínima (filtragem no frame)
+            # Se não passar, pula criação de evento mas mantém track ativo
             confidence = float(box.conf[0])
             if confidence < self.track_validation_service.min_confidence_threshold:
                 continue
-            
-            detected_track_ids.add(track_id)
             
             # OTIMIZAÇÃO: Usa buffer preallocado para bbox
             np.copyto(self.bbox_buffer, box.xyxy[0].cpu().numpy())
