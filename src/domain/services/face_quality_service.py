@@ -6,9 +6,12 @@ from typing import Optional
 from functools import lru_cache
 import numpy as np
 import cv2
+import logging
 
 from src.domain.value_objects import BboxVO, ConfidenceVO, LandmarksVO
 from src.domain.entities.frame_entity import Frame
+
+logger = logging.getLogger(__name__)
 
 
 class FaceQualityService:
@@ -53,6 +56,10 @@ class FaceQualityService:
         landmarks_array = landmarks.value() if not landmarks.is_empty() else None
         
         if landmarks_array is None or len(landmarks_array) < 5:
+            logger.warning(
+                f"⚠ Landmarks ausentes ou insuficientes para cálculo de frontalidade. "
+                f"landmarks_array={'None' if landmarks_array is None else f'len={len(landmarks_array)}'}"
+            )
             return 1.0
         
         # Desempacota os pontos: olho esq., olho dir., nariz, boca esq., boca dir.
@@ -155,7 +162,7 @@ class FaceQualityService:
         bbox: BboxVO,
         landmarks: LandmarksVO,
         peso_tamanho: float = 1.0,
-        peso_frontal: float = 1.0
+        peso_frontal: float = 3.0
     ) -> ConfidenceVO:
         """
         Calcula o score de qualidade de uma face detectada.
@@ -180,5 +187,5 @@ class FaceQualityService:
             score_frontal * peso_frontal
         ) / total_peso
 
-        return ConfidenceVO(score_final)
+        return ConfidenceVO(score_frontal)
         

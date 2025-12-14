@@ -90,6 +90,16 @@ class EventCreationService:
             landmarks_array, landmarks_conf = keypoints
             if landmarks_array is not None and len(landmarks_array) > 0:
                 landmarks_vo = LandmarksVO(landmarks_array)
+                self.logger.debug(
+                    f"✓ Landmarks extraídos: {len(landmarks_array)} pontos, conf={landmarks_conf:.2f}"
+                )
+            else:
+                self.logger.warning(
+                    f"⚠ Landmarks array vazio ou None: "
+                    f"landmarks_array={'None' if landmarks_array is None else f'len={len(landmarks_array)}'}"
+                )
+        else:
+            self.logger.warning(f"⚠ keypoints é None - landmarks não disponíveis para o evento")
         
         # 3. Cria Frame entity UMA VEZ (OTIMIZAÇÃO: evita duplicação)
         # ANTES: criava temp_frame para qualidade + frame_entity_obj para evento (2x overhead)
@@ -118,6 +128,11 @@ class EventCreationService:
                 face_quality_score = quality_vo.value()
             except Exception as e:
                 self.logger.debug(f"Erro ao calcular qualidade facial: {e}")
+        else:
+            if landmarks_vo is None:
+                self.logger.warning(
+                    f"⚠ Qualidade facial NÃO calculada: landmarks_vo é None"
+                )
         
         # 5. Cria Event
         event_id = abs(hash(f"{camera.camera_id.value()}_{track_id}_{frame_entity.timestamp.value()}")) % (10**9)

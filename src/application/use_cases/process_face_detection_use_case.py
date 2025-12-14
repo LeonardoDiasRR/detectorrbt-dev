@@ -45,16 +45,11 @@ class ProcessFaceDetectionUseCase:
         track_validation_service: TrackValidationService,
         track_lifecycle_service: TrackLifecycleService,
         landmarks_detector: Optional[ILandmarksDetector] = None,
-        landmarks_queue: Optional[Queue] = None,
-        landmarks_results_cache: Optional[Dict] = None,
-        landmarks_cache_lock: Optional[threading.Lock] = None,
         gpu_id: int = 0,
         image_save_service: Optional[ImageSaveService] = None,
         face_quality_service: Optional[FaceQualityService] = None,
         tracker_config: str = "bytetrack.yaml",
         batch_size: int = 1,
-        gpu_batch_size: int = 32,
-        cpu_batch_size: int = 1,
         show_video: bool = False,
         conf_threshold: float = 0.5,
         iou_threshold: float = 0.5,
@@ -76,8 +71,6 @@ class ProcessFaceDetectionUseCase:
         Inicializa o caso de uso de processamento de detecção de faces.
         
         :param camera: Entidade Camera.
-        :param gpu_batch_size: Tamanho do batch para landmarks em GPU.
-        :param cpu_batch_size: Tamanho do batch para landmarks em CPU.
         :param face_detector: Implementação de IFaceDetector.
         :param findface_adapter: Adapter para envio ao FindFace.
         :param findface_queue: Fila global compartilhada do FindFace.
@@ -85,10 +78,7 @@ class ProcessFaceDetectionUseCase:
         :param movement_detection_service: Serviço de detecção de movimento.
         :param track_validation_service: Serviço de validação de tracks.
         :param track_lifecycle_service: Serviço de ciclo de vida de tracks.
-        :param landmarks_detector: Implementação opcional de ILandmarksDetector.
-        :param landmarks_queue: Fila global compartilhada de landmarks.
-        :param landmarks_results_cache: Cache global de resultados de landmarks.
-        :param landmarks_cache_lock: Lock para acesso thread-safe ao cache.
+        :param landmarks_detector: Implementação opcional de ILandmarksDetector (inferência síncrona em batch).
         :param gpu_id: ID da GPU utilizada.
         :param image_save_service: Serviço para salvamento assíncrono de imagens.
         :param face_quality_service: Serviço para cálculo de qualidade facial.
@@ -115,9 +105,6 @@ class ProcessFaceDetectionUseCase:
         self.findface_adapter = findface_adapter
         self.findface_queue = findface_queue
         self.landmarks_detector = landmarks_detector
-        self.landmarks_queue = landmarks_queue
-        self.landmarks_results_cache = landmarks_results_cache
-        self.landmarks_cache_lock = landmarks_cache_lock
         self.gpu_id = gpu_id
         self.image_save_service = image_save_service
         
@@ -151,6 +138,9 @@ class ProcessFaceDetectionUseCase:
         # OTIMIZAÇÃO 3: GC periódica - evita fragmentação de memória
         self._tracks_finalized_count = 0
         
+        # Contador para warnings periódicos de fila cheia
+        self._findface_queue_full_count = 0
+        
         # CRÍTICO: Logger DEVE ser criado ANTES do worker thread
         self.logger = logging.getLogger(
             f"{self.__class__.__name__}-{camera.camera_name.value()}"
@@ -159,16 +149,9 @@ class ProcessFaceDetectionUseCase:
         # OTIMIZAÇÃO: Buffer preallocado para bboxes (evita alocações repetidas)
         self.bbox_buffer = np.empty(4, dtype=np.float32)
         
-        # OTIMIZAÇÃO: Pool GLOBAL de landmarks (compartilhado entre todas as câmeras)
-        # Recebe queue, cache e lock criados em run.py
-        self._landmarks_queue = landmarks_queue
-        self._landmarks_results_cache = landmarks_results_cache  # Cache global: {camera_id: {event_id: landmarks}}
-        self._landmarks_cache_lock = landmarks_cache_lock  # Lock para acesso thread-safe
-        self._event_id_counter = 0
-        
-        if self.landmarks_detector is not None and self._landmarks_queue is not None:
+        if self.landmarks_detector is not None:
             self.logger.info(
-                f"Usando pool GLOBAL de landmarks (fila compartilhada entre câmeras)"
+                f"Detector de landmarks configurado para inferência SÍNCRONA em batch"
             )
         
         # Log de configuração de salvamento de imagens
@@ -203,15 +186,6 @@ class ProcessFaceDetectionUseCase:
         Para o processamento do stream.
         """
         self.running = False
-        
-        # POOL GLOBAL de landmarks não é parado aqui (gerenciado em run.py)
-        # Apenas limpa cache desta câmera
-        if self._landmarks_cache_lock is not None and self._landmarks_results_cache is not None:
-            camera_id = self.camera.camera_id.value()
-            with self._landmarks_cache_lock:
-                if camera_id in self._landmarks_results_cache:
-                    del self._landmarks_results_cache[camera_id]
-                    self.logger.info(f"Cache de landmarks da câmera {camera_id} limpo")
         
         # Finaliza serviço de salvamento de imagens
         if self.image_save_service is not None:
@@ -282,6 +256,14 @@ class ProcessFaceDetectionUseCase:
             self._update_lost_tracks()
             return
         
+        # Verifica se landmarks já vieram da primeira inferência (YOLO com keypoints)
+        has_keypoints_from_yolo = hasattr(result, 'keypoints') and result.keypoints is not None
+        
+        if has_keypoints_from_yolo:
+            self.logger.debug(f"✓ YOLO retornou keypoints na primeira inferência")
+        else:
+            self.logger.debug(f"✗ YOLO NÃO retornou keypoints - será necessária segunda inferência")
+        
         # IDs dos tracks detectados neste frame
         detected_track_ids = set()
         
@@ -291,6 +273,7 @@ class ProcessFaceDetectionUseCase:
         track_ids: List[int] = []
         bboxes: List[np.ndarray] = []
         confidences: List[float] = []
+        yolo_landmarks: List = []  # Landmarks da primeira inferência (se existirem)
         
         h, w = frame_vo.ndarray_readonly.shape[:2]
         
@@ -317,38 +300,63 @@ class ProcessFaceDetectionUseCase:
                 track_ids.append(track_id)
                 bboxes.append(self.bbox_buffer.copy())
                 confidences.append(float(box.conf[0]))
+                
+                # Extrai landmarks da primeira inferência se disponível
+                if has_keypoints_from_yolo:
+                    keypoints_xy = result.keypoints.xy[i].cpu().numpy()
+                    yolo_landmarks.append(keypoints_xy)
+                else:
+                    yolo_landmarks.append(None)
         
-        # OTIMIZAÇÃO #1: Inferência ASSÍNCRONA de landmarks via POOL GLOBAL
-        # Enfileira crops para processamento no pool compartilhado
+        # Decide se precisa fazer segunda inferência para landmarks
         landmarks_results = []
-        if self._landmarks_queue is not None and len(face_crops) > 0:
-            camera_id = self.camera.camera_id.value()
-            
-            for i, face_crop in enumerate(face_crops):
-                self._event_id_counter += 1
-                event_id = self._event_id_counter
-                
-                # Enfileira crop para processamento no pool global
-                # Formato: (camera_id, event_id, face_crop)
-                try:
-                    self._landmarks_queue.put_nowait((camera_id, event_id, face_crop.copy()))
-                except:
-                    # Fila cheia - usa fallback (sem log para evitar spam)
-                    pass
-                
-                # Tenta buscar resultado já processado no cache global (thread-safe)
-                landmarks_array = None
-                if self._landmarks_cache_lock is not None:
-                    with self._landmarks_cache_lock:
-                        camera_cache = self._landmarks_results_cache.get(camera_id, {})
-                        landmarks_array = camera_cache.pop(event_id, None)
-                
-                if landmarks_array is not None:
+        
+        if has_keypoints_from_yolo:
+            # Usa landmarks da primeira inferência (YOLO)
+            self.logger.info(f"✓ Usando landmarks da primeira inferência YOLO ({len(yolo_landmarks)} detecções)")
+            for i, landmarks_array in enumerate(yolo_landmarks):
+                if landmarks_array is not None and len(landmarks_array) >= 5:
+                    # Confiança 1.0 pois veio da detecção principal
                     landmarks_results.append((landmarks_array, 1.0))
+                    self.logger.debug(f"  - Face {i}: {len(landmarks_array)} landmarks")
                 else:
                     landmarks_results.append(None)
+                    self.logger.warning(f"  - Face {i}: landmarks insuficientes ou None")
+        
+        elif self.landmarks_detector is not None and len(face_crops) > 0:
+            # Landmarks NÃO vieram da primeira inferência - faz segunda inferência em BATCH
+            self.logger.info(f"⚙ Executando segunda inferência em batch para landmarks ({len(face_crops)} crops)")
+            try:
+                batch_landmarks = self.landmarks_detector.predict_batch(
+                    face_crops=face_crops,
+                    conf=0.5,
+                    verbose=False
+                )
+                
+                self.logger.debug(f"Segunda inferência retornou {len(batch_landmarks)} resultados")
+                
+                # Converte para formato esperado: List[Tuple[np.ndarray, float] | None]
+                for i, landmarks_data in enumerate(batch_landmarks):
+                    if landmarks_data is not None:
+                        landmarks_array, conf = landmarks_data
+                        if landmarks_array is not None and len(landmarks_array) >= 5:
+                            landmarks_results.append((landmarks_array, conf))
+                            self.logger.debug(f"  - Face {i}: {len(landmarks_array)} landmarks (conf={conf:.2f})")
+                        else:
+                            landmarks_results.append(None)
+                            self.logger.warning(f"  - Face {i}: landmarks insuficientes")
+                    else:
+                        landmarks_results.append(None)
+                        self.logger.warning(f"  - Face {i}: predict_batch retornou None")
+            except Exception as e:
+                self.logger.error(f"Erro na segunda inferência de landmarks: {e}", exc_info=True)
+                landmarks_results = [None] * len(face_crops)
         else:
+            # Sem landmarks disponíveis
+            if self.landmarks_detector is None:
+                self.logger.warning("⚠ Detector de landmarks não configurado")
             landmarks_results = [None] * len(face_crops)
+            self.logger.debug(f"Sem landmarks para {len(face_crops)} faces")
         
         # Cria eventos para todas as detecções
         for i, (track_id, bbox, confidence, landmarks_result) in enumerate(
@@ -468,7 +476,15 @@ class ProcessFaceDetectionUseCase:
                             f"Confiança: {best_confidence:.2f}"
                         )
                 except Exception as e:
-                    self.logger.error(f"Erro ao enfileirar evento FindFace: {e}")
+                    # Fila cheia - log periódico a cada 100 ocorrências
+                    self._findface_queue_full_count += 1
+                    if self._findface_queue_full_count % 100 == 0:
+                        self.logger.warning(
+                            f"⚠ Fila de FindFace CHEIA - {self._findface_queue_full_count} ocorrências "
+                            f"(tamanho: {self.findface_queue.qsize()}/{self.findface_queue.maxsize})"
+                        )
+                    if self.verbose_log:
+                        self.logger.debug(f"Erro ao enfileirar evento FindFace: {e}")
         else:
             # Log de track descartado (sempre registra)
             self.logger.warning(

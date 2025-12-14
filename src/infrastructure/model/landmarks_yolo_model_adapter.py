@@ -92,14 +92,9 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
             if result.keypoints is None or len(result.keypoints) == 0:
                 return None
             
-            kpts = result.keypoints[0].xy.cpu().numpy()
+            landmarks = result.keypoints[0].xy.cpu().numpy()  # Shape: (N, 2)
             
-            if kpts.shape[0] == 0:
-                return None
-            
-            landmarks = kpts[0]  # Shape: (N, 2)
-            
-            if len(landmarks) == 0:
+            if landmarks.shape[0] == 0:
                 return None
             
             return (landmarks, confidence)
@@ -171,15 +166,9 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
                     batch_landmarks.append(None)
                     continue
                 
-                kpts = result.keypoints[0].xy.cpu().numpy()
+                landmarks = result.keypoints[0].xy.cpu().numpy()  # Shape: (N, 2)
                 
-                if kpts.shape[0] == 0:
-                    batch_landmarks.append(None)
-                    continue
-                
-                landmarks = kpts[0]  # Shape: (N, 2)
-                
-                if len(landmarks) == 0:
+                if landmarks.shape[0] == 0:
                     batch_landmarks.append(None)
                     continue
                 
