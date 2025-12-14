@@ -355,7 +355,15 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     
     face_quality_service = FaceQualityService() if settings.yolo.landmarks_model_path else None
     
-    # Cria serviços de detecção - CADA CÂMERA COM SEU PRÓPRIO MODELO
+    # ============================================================================
+    # FASE 1: CARREGAMENTO SEQUENCIAL DE MODELOS (evita race condition TensorRT)
+    # ============================================================================
+    logger.info("=" * 80)
+    logger.info("FASE 1: Carregando modelos de detecção sequencialmente...")
+    logger.info("=" * 80)
+    
+    models_info = []  # Lista de tuplas: (camera, gpu_id, detection_model, face_detector)
+    
     for i, camera in enumerate(cameras_ff, 1):
         try:
             # Determina device para esta câmera
@@ -367,14 +375,16 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
                 gpu_id = "cpu"
                 logger.info(f"[{i}/{len(cameras_ff)}] Câmera {camera.camera_name.value()} → CPU")
             
-            # IMPORTANTE: Cria uma instância SEPARADA do modelo para cada câmera
-            # Isso evita conflitos de thread-safety
+            # IMPORTANTE: Carrega modelos SEQUENCIALMENTE para evitar race condition
             logger.info(f"[{i}/{len(cameras_ff)}] Carregando modelo para câmera {camera.camera_name.value()}...")
             
             # Configura GPU antes de criar o modelo (se disponível)
             if cuda_available and isinstance(gpu_id, int):
                 torch.cuda.set_device(gpu_id)
-                logger.info(f"[{i}/{len(cameras_ff)}] GPU {gpu_id} selecionada para câmera {camera.camera_name.value()}")
+                # Limpa cache CUDA e sincroniza para evitar erros de memória
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+                logger.info(f"[{i}/{len(cameras_ff)}] GPU {gpu_id} configurada para câmera {camera.camera_name.value()}")
             
             detection_model = ModelFactory.create_model(
                 model_path=settings.yolo.model_path,
@@ -388,7 +398,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
             
             model_info = detection_model.get_model_info()
             logger.info(
-                f"[{i}/{len(cameras_ff)}] Modelo de detecção carregado: "
+                f"[{i}/{len(cameras_ff)}] ✓ Modelo carregado: "
                 f"backend={model_info['backend']}, "
                 f"device={model_info['device']}, "
                 f"precision={model_info['precision']}"
@@ -397,11 +407,37 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
             # Cria wrapper YOLOFaceDetector para interface de domínio
             face_detector = YOLOFaceDetector(detection_model)
             
-            # POOL GLOBAL de landmarks (carregado uma única vez no início)
-            # Não precisa carregar landmarks_detector por câmera
+            # Armazena informações para criação posterior dos processors
+            models_info.append((camera, gpu_id, detection_model, face_detector))
             
-            # Cria ProcessFaceDetectionUseCase
-            # YOLO gerencia o stream internamente, não precisa de RTSPStreamReader
+        except Exception as e:
+            logger.error(f"Erro ao carregar modelo para câmera {camera.camera_name.value()}: {e}")
+            logger.warning(f"Câmera {camera.camera_name.value()} será ignorada.")
+            continue
+    
+    if not models_info:
+        logger.error("Nenhum modelo foi carregado com sucesso. Encerrando.")
+        return
+    
+    logger.info("=" * 80)
+    logger.info(f"FASE 1 CONCLUÍDA: {len(models_info)} modelo(s) carregado(s) com sucesso!")
+    logger.info("=" * 80)
+    
+    # ============================================================================
+    # FASE 2: CRIAÇÃO DOS PROCESSORS COM MODELOS JÁ CARREGADOS
+    # ============================================================================
+    logger.info("")
+    logger.info("=" * 80)
+    logger.info("FASE 2: Criando processors de câmera...")
+    logger.info("=" * 80)
+    
+    processors = []
+    
+    for i, (camera, gpu_id, detection_model, face_detector) in enumerate(models_info, 1):
+        try:
+            logger.info(f"[{i}/{len(models_info)}] Criando processor para câmera {camera.camera_name.value()}...")
+            
+            # Cria ProcessFaceDetectionUseCase com modelo já carregado
             processor = ProcessFaceDetectionUseCase(
                 camera=camera,
                 face_detector=face_detector,
@@ -434,17 +470,28 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
                 jpeg_quality=settings.performance.jpeg_compression
             )
             processors.append(processor)
+            logger.info(f"[{i}/{len(models_info)}] ✓ Processor criado com sucesso")
             
         except Exception as e:
-            logger.error(f"Erro ao carregar modelo para câmera {camera.camera_name.value()}: {e}")
+            logger.error(f"Erro ao criar processor para câmera {camera.camera_name.value()}: {e}")
             logger.warning(f"Câmera {camera.camera_name.value()} será ignorada.")
             continue
     
     if not processors:
-        logger.error("Nenhuma câmera foi carregada com sucesso. Encerrando.")
+        logger.error("Nenhum processor foi criado com sucesso. Encerrando.")
         return
     
-    logger.info(f"Iniciando {len(processors)} processador(es) de câmera em paralelo...")
+    logger.info("=" * 80)
+    logger.info(f"FASE 2 CONCLUÍDA: {len(processors)} processor(s) criado(s) com sucesso!")
+    logger.info("=" * 80)
+    
+    # ============================================================================
+    # FASE 3: INICIALIZAÇÃO DAS THREADS (modelos já estão carregados)
+    # ============================================================================
+    logger.info("")
+    logger.info("=" * 80)
+    logger.info(f"FASE 3: Iniciando {len(processors)} thread(s) de câmera em paralelo...")
+    logger.info("=" * 80)
     
     # Inicia cada processador em uma thread separada
     threads = []
