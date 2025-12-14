@@ -147,6 +147,14 @@ class ProcessFaceDetectionUseCase:
         # OTIMIZAÇÃO 3: GC periódica - evita fragmentação de memória
         self._tracks_finalized_count = 0
         
+        # CRÍTICO: Logger DEVE ser criado ANTES do worker thread
+        self.logger = logging.getLogger(
+            f"{self.__class__.__name__}-{camera.camera_name.value()}"
+        )
+        
+        # OTIMIZAÇÃO: Buffer preallocado para bboxes (evita alocações repetidas)
+        self.bbox_buffer = np.empty(4, dtype=np.float32)
+        
         # OTIMIZAÇÃO 1: Worker assíncrono de landmarks
         # Detecta se está em GPU ou CPU para escolher batch size adequado
         try:
@@ -178,14 +186,6 @@ class ProcessFaceDetectionUseCase:
                 f"(fila: {landmarks_queue_size}, batch: {self._landmarks_batch_size}, "
                 f"dispositivo: {'GPU' if is_gpu else 'CPU'})"
             )
-        
-        # OTIMIZAÇÃO: Buffer preallocado para bboxes (evita alocações repetidas)
-        self.bbox_buffer = np.empty(4, dtype=np.float32)
-        
-        # Logger
-        self.logger = logging.getLogger(
-            f"{self.__class__.__name__}-{camera.camera_name.value()}"
-        )
 
     def start(self) -> None:
         """
