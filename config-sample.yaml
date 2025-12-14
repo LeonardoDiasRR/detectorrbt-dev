@@ -77,7 +77,7 @@ logging:
 # Configurações de exibição na tela
 display:
   # Exibir processamento na tela
-  exibir_na_tela: true
+  exibir_na_tela: false
 
 # Configurações de salvamento de imagens
 storage:
