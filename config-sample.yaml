@@ -82,6 +82,12 @@ performance:
   # 95 = qualidade máxima (~18ms encoding), 75 = boa qualidade (~12ms, 1.5x mais rápido)
   # Reduzir para 60-75 melhora performance em cenas com muitas faces
   jpeg_compression: 95
+  # Tamanho do batch para inferência de landmarks em GPU (padrão: 32)
+  # Maior batch = melhor throughput GPU, mas mais latência
+  gpu_batch_size: 32
+  # Tamanho do batch para inferência de landmarks em CPU (padrão: 1)
+  # CPU não se beneficia de batch processing como GPU
+  cpu_batch_size: 1
 
 # Configurações TensorRT (melhor performance em GPUs NVIDIA)
 tensorrt:

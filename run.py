@@ -379,6 +379,8 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
                 image_save_service=image_save_service,
                 face_quality_service=face_quality_service,
                 tracker_config=settings.bytetrack.tracker_config,
+                gpu_batch_size=settings.performance.gpu_batch_size,  # NOVO
+                cpu_batch_size=settings.performance.cpu_batch_size,  # NOVO
                 show_video=settings.processing.show_video,
                 conf_threshold=settings.yolo.conf_threshold,
                 iou_threshold=settings.yolo.iou_threshold,

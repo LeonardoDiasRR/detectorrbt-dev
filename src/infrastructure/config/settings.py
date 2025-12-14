@@ -95,6 +95,8 @@ class PerformanceConfig:
     detection_skip_frames: int = 1
     findface_queue_size: int = 200  # Tamanho da fila assíncrona FindFace
     jpeg_compression: int = 95  # Qualidade JPEG para envio ao FindFace (0-100)
+    gpu_batch_size: int = 32  # Batch size para landmarks em GPU
+    cpu_batch_size: int = 1  # Batch size para landmarks em CPU
 
 
 @dataclass

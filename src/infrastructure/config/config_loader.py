@@ -158,7 +158,9 @@ class ConfigLoader:
             inference_size=yaml_config.get("performance", {}).get("inference_size", 640),
             detection_skip_frames=yaml_config.get("performance", {}).get("detection_skip_frames", 1),
             findface_queue_size=yaml_config.get("performance", {}).get("findface_queue_size", 200),
-            jpeg_compression=yaml_config.get("performance", {}).get("jpeg_compression", 95)
+            jpeg_compression=yaml_config.get("performance", {}).get("jpeg_compression", 95),
+            gpu_batch_size=yaml_config.get("performance", {}).get("gpu_batch_size", 32),
+            cpu_batch_size=yaml_config.get("performance", {}).get("cpu_batch_size", 1)
         )
         
         # Carrega câmeras do YAML
