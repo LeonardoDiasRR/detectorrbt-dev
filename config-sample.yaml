@@ -31,12 +31,10 @@ iou: 0.15 # Quanto maior, mais restritivo
 show: false
 
 # Pesos na escolha da melhor face do track
+# Utiliza apenas frontalidade e tamanho para cálculo simplificado
 qualidade_face:
-  confianca_deteccao: 2
-  tamanho_bbox: 3
-  face_frontal: 6
-  proporcao_bbox: 1
-  nitidez: 1
+  tamanho_bbox: 1
+  face_frontal: 1
 
 # Modo verboso de log
 verbose_log: false

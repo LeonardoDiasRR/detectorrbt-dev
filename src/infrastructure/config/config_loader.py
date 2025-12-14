@@ -130,13 +130,10 @@ class ConfigLoader:
             min_bbox_width=yaml_config.get("filtro_deteccao", {}).get("largura_minima_bbox", 60)
         )
         
-        # Configuração de Qualidade Facial
+        # Configuração de Qualidade Facial (simplificado)
         face_quality_config = FaceQualityConfig(
-            peso_confianca=float(yaml_config.get("qualidade_face", {}).get("confianca_deteccao", 3.0)),
-            peso_tamanho=float(yaml_config.get("qualidade_face", {}).get("tamanho_bbox", 4.0)),
-            peso_frontal=float(yaml_config.get("qualidade_face", {}).get("face_frontal", 6.0)),
-            peso_proporcao=float(yaml_config.get("qualidade_face", {}).get("proporcao_bbox", 1.0)),
-            peso_nitidez=float(yaml_config.get("qualidade_face", {}).get("nitidez", 1.0))
+            peso_tamanho=float(yaml_config.get("qualidade_face", {}).get("tamanho_bbox", 1.0)),
+            peso_frontal=float(yaml_config.get("qualidade_face", {}).get("face_frontal", 1.0))
         )
         
         # Configuração TensorRT

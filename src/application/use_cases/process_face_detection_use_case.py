@@ -13,7 +13,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, Future
 import numpy as np
 
-from src.domain.entities import Camera, Track
+from src.domain.entities import Camera, Track, Event
 from src.domain.interfaces import IFaceDetector, ILandmarksDetector
 from src.domain.services import (
     TrackValidationService,
@@ -69,7 +69,8 @@ class ProcessFaceDetectionUseCase:
         min_bbox_width: int = 50,
         max_frames_per_track: int = 100,
         inference_size: Optional[tuple] = None,
-        detection_skip_frames: int = 0
+        detection_skip_frames: int = 0,
+        jpeg_quality: int = 95
     ):
         """
         Inicializa o caso de uso de processamento de detecção de faces.
@@ -134,6 +135,9 @@ class ProcessFaceDetectionUseCase:
         self.verbose_log = verbose_log
         self.save_images = save_images
         self.show_video = show_video
+        self.project_dir = project_dir
+        self.results_dir = results_dir
+        self.jpeg_quality = jpeg_quality
         self.inference_size = inference_size
         self.detection_skip_frames = detection_skip_frames
         
@@ -430,6 +434,10 @@ class ProcessFaceDetectionUseCase:
             # Obtém melhor evento
             best_event = self.track_lifecycle_service.get_best_event(track)
             if best_event is not None:
+                # SALVAMENTO ASSÍNCRONO: Salva fullframe com bbox desenhado
+                if self.save_images and self.image_save_service is not None:
+                    self._save_event_image_async(best_event, track_id)
+                
                 # Enfileira para envio ao FindFace
                 try:
                     self.findface_queue.put_nowait((
@@ -474,5 +482,71 @@ class ProcessFaceDetectionUseCase:
         self._tracks_finalized_count += 1
         if self._tracks_finalized_count % 500 == 0:
             gc.collect()
+    
+    def _save_event_image_async(self, event: Event, track_id: int) -> None:
+        """
+        Salva fullframe com bbox do evento desenhado (assíncrono).
+        
+        :param event: Evento com o melhor frame.
+        :param track_id: ID do track para nomenclatura.
+        """
+        try:
+            import cv2
+            from pathlib import Path
+            
+            # Obtém fullframe e bbox
+            full_frame = event.frame.full_frame.value().copy()  # Copia para não modificar original
+            bbox = event.bbox.value()  # (x1, y1, x2, y2)
+            
+            # Desenha bbox verde (RGB: 0, 255, 0) com espessura 2
+            x1, y1, x2, y2 = bbox
+            cv2.rectangle(full_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            
+            # Adiciona label com track_id e confiança
+            label = f"Track {track_id} - Conf: {event.confidence.value():.2f}"
+            label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+            label_y = max(y1 - 10, label_size[1] + 10)
+            
+            # Background para texto
+            cv2.rectangle(
+                full_frame,
+                (x1, label_y - label_size[1] - 5),
+                (x1 + label_size[0], label_y + 5),
+                (0, 255, 0),
+                -1
+            )
+            
+            # Texto
+            cv2.putText(
+                full_frame,
+                label,
+                (x1, label_y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 0, 0),
+                2
+            )
+            
+            # Cria path de salvamento
+            # Formato: project_dir/results_dir/camera_name/track_XXXXX_timestamp.jpg
+            timestamp = event.frame.timestamp.value()
+            camera_name = self.camera.camera_name.value()
+            
+            output_dir = Path(self.project_dir) / self.results_dir / camera_name
+            filename = f"track_{track_id:05d}_{timestamp}.jpg"
+            filepath = output_dir / filename
+            
+            # Enfileira para salvamento assíncrono
+            success = self.image_save_service.save_async(
+                image=full_frame,
+                filepath=filepath,
+                jpeg_quality=self.jpeg_quality
+            )
+            
+            if not success and self.verbose_log:
+                self.logger.warning(f"Falha ao enfileirar imagem do track {track_id}")
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao preparar salvamento de imagem do track {track_id}: {e}")
             if self.verbose_log:
                 self.logger.debug(f"GC executado após {self._tracks_finalized_count} tracks finalizados")
