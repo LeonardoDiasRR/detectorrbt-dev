@@ -182,3 +182,4 @@ verify_landmarks.py
 Headposes.png
 test*.py
 quality_results/
+run-legado.py

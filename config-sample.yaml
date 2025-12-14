@@ -71,8 +71,10 @@ qualidade_face:
 
 # Configurações de logging
 logging:
-  # Modo verboso de log
-  verbose: true
+  # Nível de log: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+  # Formato das mensagens de log
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Configurações de exibição na tela
 display:
@@ -82,7 +84,7 @@ display:
 # Configurações de salvamento de imagens
 storage:
   # Ativa/desativa o salvamento de imagens no disco
-  save_images: true
+  save_images: false
   # Diretório de saída para as imagens
   project_dir: "./imagens/"
   # Nome do subdiretório de resultados

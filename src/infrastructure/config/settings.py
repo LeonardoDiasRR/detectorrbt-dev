@@ -73,7 +73,8 @@ class DisplayConfig:
 @dataclass
 class LoggingConfig:
     """Configuração de logging."""
-    verbose: bool = False
+    level: str = "INFO"
+    format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 
 @dataclass

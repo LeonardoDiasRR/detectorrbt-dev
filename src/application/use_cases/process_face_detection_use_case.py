@@ -56,7 +56,6 @@ class ProcessFaceDetectionUseCase:
         landmark_conf_threshold: float = 0.1,
         landmark_iou_threshold: float = 0.75,
         max_frames_lost: int = 30,
-        verbose_log: bool = False,
         save_images: bool = False,
         project_dir: str = "imagens",
         results_dir: str = "rtsp_byte_track_results",
@@ -91,7 +90,6 @@ class ProcessFaceDetectionUseCase:
         :param landmark_conf_threshold: Threshold de confiança para detecção de landmarks.
         :param landmark_iou_threshold: Threshold de IoU para NMS de landmarks.
         :param max_frames_lost: Máximo de frames perdidos antes de finalizar track.
-        :param verbose_log: Se deve fazer log detalhado.
         :param save_images: Se deve salvar imagens.
         :param project_dir: Diretório do projeto.
         :param results_dir: Diretório de resultados.
@@ -125,7 +123,6 @@ class ProcessFaceDetectionUseCase:
         self.landmark_conf_threshold = landmark_conf_threshold
         self.landmark_iou_threshold = landmark_iou_threshold
         self.max_frames_lost = max_frames_lost
-        self.verbose_log = verbose_log
         self.save_images = save_images
         self.show_video = show_video
         self.project_dir = project_dir
@@ -402,7 +399,7 @@ class ProcessFaceDetectionUseCase:
             if track.event_count > 0:
                 added = self.track_lifecycle_service.add_event_to_track(track, event)
                 
-                if self.verbose_log and added:
+                if added:
                     self.logger.debug(
                         f"Track {track_id}: Evento adicionado "
                         f"(total: {track.event_count}, conf: {event.confidence.value():.2f})"
@@ -484,8 +481,7 @@ class ProcessFaceDetectionUseCase:
                             f"⚠ Fila de FindFace CHEIA - {self._findface_queue_full_count} ocorrências "
                             f"(tamanho: {self.findface_queue.qsize()}/{self.findface_queue.maxsize})"
                         )
-                    if self.verbose_log:
-                        self.logger.debug(f"Erro ao enfileirar evento FindFace: {e}")
+                    self.logger.debug(f"Erro ao enfileirar evento FindFace: {e}")
         else:
             # Log de track descartado (sempre registra)
             self.logger.warning(
@@ -631,5 +627,4 @@ class ProcessFaceDetectionUseCase:
             
         except Exception as e:
             self.logger.error(f"Erro ao preparar salvamento de imagem do track {track_id}: {e}")
-            if self.verbose_log:
-                self.logger.debug(f"GC executado após {self._tracks_finalized_count} tracks finalizados")
+            self.logger.debug(f"GC executado após {self._tracks_finalized_count} tracks finalizados")

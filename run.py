@@ -103,12 +103,12 @@ file_handler = RotatingFileHandler(
     backupCount=3,
     encoding='utf-8'
 )
-file_handler.setLevel(logging.INFO)
+file_handler.setLevel(logging.INFO)  # Valor padrão, será atualizado após carregar settings
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
 # Handler para console
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
+console_handler.setLevel(logging.INFO)  # Valor padrão, será atualizado após carregar settings
 console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
 # OTIMIZAÇÃO: Sistema de logging assíncrono com fila para evitar I/O bloqueante
@@ -126,12 +126,12 @@ queue_listener.start()
 
 # QueueHandler envia logs para a fila (operação instantânea, não bloqueante)
 queue_handler = QueueHandler(log_queue)
-queue_handler.setLevel(logging.INFO)
+queue_handler.setLevel(logging.INFO)  # Valor padrão, será atualizado após carregar settings
 
 # Configura root logger para usar apenas o QueueHandler
 # Remove formatters duplicados do root logger
 root_logger = logging.getLogger()
-root_logger.setLevel(logging.INFO)
+root_logger.setLevel(logging.INFO)  # Valor padrão, será atualizado após carregar settings
 root_logger.handlers.clear()  # Remove handlers existentes
 root_logger.addHandler(queue_handler)
 
@@ -467,7 +467,6 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
                 landmark_conf_threshold=settings.landmark.confidence_threshold,
                 landmark_iou_threshold=settings.landmark.iou_threshold,
                 max_frames_lost=settings.bytetrack.max_age,
-                verbose_log=settings.logging.verbose,
                 save_images=settings.storage.save_images,
                 project_dir=settings.storage.project_dir,
                 results_dir=settings.storage.results_dir,
@@ -570,6 +569,19 @@ if __name__ == "__main__":
     try:
         # Carrega configurações type-safe
         settings = ConfigLoader.load()
+        
+        # Reconfigura logging com valores do settings
+        log_level = getattr(logging, settings.logging.level, logging.INFO)
+        log_format = logging.Formatter(settings.logging.format)
+        
+        file_handler.setLevel(log_level)
+        file_handler.setFormatter(log_format)
+        console_handler.setLevel(log_level)
+        console_handler.setFormatter(log_format)
+        queue_handler.setLevel(log_level)
+        root_logger.setLevel(log_level)
+        
+        logger.info(f"Nível de log configurado: {settings.logging.level}")
         
         # Cria cliente FindFace
         ff = create_findface_client(settings.findface)

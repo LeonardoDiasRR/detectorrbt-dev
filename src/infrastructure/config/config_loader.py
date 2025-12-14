@@ -130,7 +130,8 @@ class ConfigLoader:
         )
         
         logging_config = LoggingConfig(
-            verbose=yaml_config.get("logging", {}).get("verbose", False)
+            level=yaml_config.get("logging", {}).get("level", "INFO"),
+            format=yaml_config.get("logging", {}).get("format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         )
         
         storage_config = StorageConfig(
