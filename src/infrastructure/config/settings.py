@@ -80,9 +80,11 @@ class DetectionFilterConfig:
 
 @dataclass
 class FaceQualityConfig:
-    """Configuração de pesos para cálculo de qualidade facial (simplificado)."""
-    peso_tamanho: float = 1.0
-    peso_frontal: float = 1.0
+    """Configuração de pesos para cálculo de qualidade facial."""
+    peso_confianca: float = 3.0
+    peso_tamanho: float = 4.0
+    peso_frontal: float = 6.0
+    peso_proporcao: float = 1.0
 
 
 @dataclass

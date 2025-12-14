@@ -57,7 +57,8 @@ class Event:
             self._face_quality_score = FaceQualityService.calculate_quality(
                 frame=frame,
                 bbox=bbox,
-                landmarks=landmarks
+                landmarks=landmarks,
+                confidence=confidence
             )
         else:
             self._face_quality_score = face_quality_score

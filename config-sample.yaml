@@ -25,16 +25,18 @@ tracker: "bytetrack.yaml"
 
 # Confiança mínima para considerar uma detecção válida
 conf: 0.1  # Valor padrão: 0.1 igual o do algoritmo ByteTrack
-iou: 0.15 # Quanto maior, mais restritivo
+iou: 0.07 # Quanto maior, mais restritivo
 
 # Exibir na tela
 show: false
 
 # Pesos na escolha da melhor face do track
-# Utiliza apenas frontalidade e tamanho para cálculo simplificado
+# Utiliza múltiplos critérios ponderados para cálculo de qualidade
 qualidade_face:
-  tamanho_bbox: 1
-  face_frontal: 1
+  confianca_deteccao: 3
+  tamanho_bbox: 4
+  face_frontal: 6
+  proporcao_bbox: 1
 
 # Modo verboso de log
 verbose_log: false

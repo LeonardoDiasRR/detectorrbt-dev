@@ -27,19 +27,25 @@ class EventCreationService:
     def __init__(
         self, 
         face_quality_service: Optional[FaceQualityService] = None,
-        peso_tamanho: float = 1.0,
-        peso_frontal: float = 1.0
+        peso_confianca: float = 3.0,
+        peso_tamanho: float = 4.0,
+        peso_frontal: float = 6.0,
+        peso_proporcao: float = 1.0
     ):
         """
         Inicializa o serviço de criação de eventos.
         
         :param face_quality_service: Serviço para cálculo de qualidade facial.
+        :param peso_confianca: Peso para score de confiança.
         :param peso_tamanho: Peso para score de tamanho.
         :param peso_frontal: Peso para score de frontalidade.
+        :param peso_proporcao: Peso para score de proporção.
         """
         self.face_quality_service = face_quality_service
+        self.peso_confianca = peso_confianca
         self.peso_tamanho = peso_tamanho
         self.peso_frontal = peso_frontal
+        self.peso_proporcao = peso_proporcao
         self.logger = logging.getLogger(self.__class__.__name__)
     
     @classmethod
@@ -114,8 +120,11 @@ class EventCreationService:
                     frame=frame_entity_obj,
                     bbox=bbox_vo,
                     landmarks=landmarks_for_quality,
+                    confidence=confidence_vo,
+                    peso_confianca=self.peso_confianca,
                     peso_tamanho=self.peso_tamanho,
-                    peso_frontal=self.peso_frontal
+                    peso_frontal=self.peso_frontal,
+                    peso_proporcao=self.peso_proporcao
                 )
                 face_quality_score = quality_vo.value()
             except Exception as e:

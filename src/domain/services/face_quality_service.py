@@ -157,31 +157,41 @@ class FaceQualityService:
         frame: Frame,
         bbox: BboxVO,
         landmarks: LandmarksVO,
-        peso_tamanho: float = 1.0,
-        peso_frontal: float = 3.0
+        confidence: ConfidenceVO,
+        peso_confianca: float = 3.0,
+        peso_tamanho: float = 4.0,
+        peso_frontal: float = 6.0,
+        peso_proporcao: float = 1.0
     ) -> ConfidenceVO:
         """
         Calcula o score de qualidade de uma face detectada.
-        Simplificado para usar apenas frontalidade e tamanho.
+        Utiliza múltiplos critérios ponderados: confiança, tamanho, frontalidade e proporção.
 
         :param frame: Frame onde a face foi detectada.
         :param bbox: Bounding box da face.
         :param landmarks: Landmarks faciais (pode ser None).
-        :param peso_tamanho: Peso para score de tamanho (padrão: 1.0).
-        :param peso_frontal: Peso para score de frontalidade (padrão: 1.0).
+        :param confidence: Confiança da detecção YOLO.
+        :param peso_confianca: Peso para score de confiança (padrão: 3.0).
+        :param peso_tamanho: Peso para score de tamanho (padrão: 4.0).
+        :param peso_frontal: Peso para score de frontalidade (padrão: 6.0).
+        :param peso_proporcao: Peso para score de proporção (padrão: 1.0).
         :return: Score de qualidade como ConfidenceVO (0.0 a 1.0).
         """
-        # Calcula apenas scores de tamanho e frontalidade
+        # Calcula todos os scores
+        score_confianca = FaceQualityService._calculate_confidence_score(confidence)
         score_tamanho = FaceQualityService._calculate_size_score(bbox, frame)
         score_frontal = FaceQualityService._calculate_frontal_score(landmarks)
+        score_proporcao = FaceQualityService._calculate_proportion_score(bbox)
 
-        # Calcula score final ponderado (apenas 2 fatores)
-        total_peso = peso_tamanho + peso_frontal
+        # Calcula score final ponderado
+        total_peso = peso_confianca + peso_tamanho + peso_frontal + peso_proporcao
 
         score_final = (
+            score_confianca * peso_confianca +
             score_tamanho * peso_tamanho +
-            score_frontal * peso_frontal
+            score_frontal * peso_frontal +
+            score_proporcao * peso_proporcao
         ) / total_peso
 
-        return ConfidenceVO(score_frontal)
+        return ConfidenceVO(score_final)
         

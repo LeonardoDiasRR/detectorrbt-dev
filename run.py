@@ -340,10 +340,12 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         min_bbox_width=settings.detection_filter.min_bbox_width
     )
     
-    # EventCreationService com pesos configurados (simplificado)
+    # EventCreationService com pesos configurados
     event_creation_service = EventCreationService(
+        peso_confianca=settings.face_quality.peso_confianca,
         peso_tamanho=settings.face_quality.peso_tamanho,
-        peso_frontal=settings.face_quality.peso_frontal
+        peso_frontal=settings.face_quality.peso_frontal,
+        peso_proporcao=settings.face_quality.peso_proporcao
     )
     
     movement_detection_service = MovementDetectionService(
