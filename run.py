@@ -243,6 +243,168 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     
     logger.info(f"Pool de {num_findface_workers} workers FindFace iniciado")
     
+    # OTIMIZAÇÃO: Pool Global de Landmarks (similar ao FindFace)
+    # Compartilhado entre todas as câmeras para melhor load balancing
+    num_landmarks_workers = max(4, num_cpus // 2)  # Mesmo número que FindFace
+    landmarks_queue = Queue(maxsize=1000)  # Fila global maior
+    landmarks_cache = {}  # Cache compartilhado: {camera_id: {event_id: landmarks}}
+    landmarks_cache_lock = threading.Lock()
+    landmarks_workers = []
+    landmarks_workers_running = True
+    
+    # Detecta se há GPU disponível para escolher batch size adequado
+    try:
+        import torch
+        is_gpu = torch.cuda.is_available()
+        landmarks_batch_size = settings.performance.gpu_batch_size if is_gpu else settings.performance.cpu_batch_size
+        device_type = 'GPU' if is_gpu else 'CPU'
+    except ImportError:
+        is_gpu = False
+        landmarks_batch_size = settings.performance.cpu_batch_size
+        device_type = 'CPU (torch não disponível)'
+    
+    logger.info(
+        f"Criando pool global de Landmarks com {num_landmarks_workers} workers "
+        f"(batch: {landmarks_batch_size}, dispositivo: {device_type})"
+    )
+    
+    def landmarks_worker_func(worker_id, queue, detector, cache, lock, batch_size, running_flag_container):
+        """Worker de Landmarks que processa crops de todas as câmeras em batch."""
+        worker_logger = logging.getLogger(f"LandmarksWorker-{worker_id}")
+        worker_logger.info(f"Worker {worker_id} iniciado (batch_size: {batch_size})")
+        
+        batch_buffer = []
+        
+        while running_flag_container[0]:
+            try:
+                # FASE 1: Pega primeiro item (timeout 100ms)
+                try:
+                    item = queue.get(timeout=0.1)
+                    
+                    if item is None:  # Sinal de parada
+                        worker_logger.info(f"Worker {worker_id} recebeu sinal de parada")
+                        break
+                    
+                    batch_buffer.append(item)
+                except:
+                    # Timeout - processa batch parcial se existir
+                    if not batch_buffer:
+                        continue
+                
+                # FASE 2: Acumula batch de QUALQUER câmera (timeout 10ms por item)
+                while len(batch_buffer) < batch_size:
+                    try:
+                        item = queue.get(timeout=0.01)
+                        if item is None:
+                            break
+                        batch_buffer.append(item)
+                    except:
+                        break  # Timeout - processa o que tem
+                
+                if not batch_buffer:
+                    continue
+                
+                # FASE 3: Batch inference
+                try:
+                    camera_ids = [item[0] for item in batch_buffer]
+                    event_ids = [item[1] for item in batch_buffer]
+                    crops = [item[2] for item in batch_buffer]
+                    
+                    if detector is not None:
+                        # Batch inference verdadeiro
+                        try:
+                            batch_results = detector.predict_batch(
+                                face_crops=crops,
+                                conf=0.5,
+                                verbose=False
+                            )
+                            
+                            # Armazena resultados no cache global (thread-safe)
+                            with lock:
+                                for camera_id, event_id, result in zip(camera_ids, event_ids, batch_results):
+                                    if camera_id not in cache:
+                                        cache[camera_id] = {}
+                                    
+                                    if result is not None:
+                                        landmarks_array, _ = result
+                                        cache[camera_id][event_id] = landmarks_array
+                                    else:
+                                        cache[camera_id][event_id] = None
+                        
+                        except Exception as e:
+                            worker_logger.warning(f"Batch inference falhou: {e}")
+                            # Fallback: processa individual
+                            with lock:
+                                for camera_id, event_id, crop in zip(camera_ids, event_ids, crops):
+                                    try:
+                                        if crop.size > 0:
+                                            result = detector.predict(face_crop=crop, conf=0.5, verbose=False)
+                                            if result is not None:
+                                                landmarks_array, _ = result
+                                                if camera_id not in cache:
+                                                    cache[camera_id] = {}
+                                                cache[camera_id][event_id] = landmarks_array
+                                            else:
+                                                if camera_id not in cache:
+                                                    cache[camera_id] = {}
+                                                cache[camera_id][event_id] = None
+                                    except Exception:
+                                        if camera_id not in cache:
+                                            cache[camera_id] = {}
+                                        cache[camera_id][event_id] = None
+                    
+                    # Marca tarefas como concluídas
+                    for _ in batch_buffer:
+                        queue.task_done()
+                
+                except Exception as e:
+                    worker_logger.error(f"Erro no processamento de batch: {e}")
+                    for _ in batch_buffer:
+                        try:
+                            queue.task_done()
+                        except:
+                            pass
+                
+                # Limpa buffer
+                batch_buffer.clear()
+                
+            except Exception as e:
+                if not running_flag_container[0]:
+                    break
+                worker_logger.error(f"Erro no landmarks worker: {e}")
+                continue
+        
+        worker_logger.info(f"Worker {worker_id} finalizado")
+    
+    # Container mutável para flag de running
+    landmarks_running_flag = [True]
+    
+    # Carrega detector de landmarks UMA VEZ para todos os workers compartilharem
+    try:
+        from src.infrastructure.ml.yolo_landmarks_detector import YOLOLandmarksDetector
+        landmarks_detector = YOLOLandmarksDetector(
+            model_path=settings.model.landmarks_model_path,
+            device=settings.model.device
+        )
+        logger.info(f"Detector de landmarks carregado: {settings.model.landmarks_model_path}")
+    except Exception as e:
+        logger.error(f"Erro ao carregar detector de landmarks: {e}")
+        landmarks_detector = None
+    
+    # Cria pool de workers de landmarks
+    for i in range(num_landmarks_workers):
+        worker = threading.Thread(
+            target=landmarks_worker_func,
+            args=(i + 1, landmarks_queue, landmarks_detector, landmarks_cache, 
+                  landmarks_cache_lock, landmarks_batch_size, landmarks_running_flag),
+            daemon=True,
+            name=f"LandmarksWorker-{i + 1}"
+        )
+        worker.start()
+        landmarks_workers.append(worker)
+    
+    logger.info(f"Pool de {num_landmarks_workers} workers Landmarks iniciado")
+    
     # Limpa o diretório de imagens antes de iniciar
     imagens_dir = os.path.join(os.path.dirname(__file__), settings.storage.project_dir)
     if os.path.exists(imagens_dir):
@@ -331,34 +493,8 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
             # Cria wrapper YOLOFaceDetector para interface de domínio
             face_detector = YOLOFaceDetector(detection_model)
             
-            # Carrega modelo de landmarks (se configurado)
-            landmarks_detector = None
-            if settings.yolo.landmarks_model_path:
-                try:
-                    logger.info(f"[{i}/{len(cameras_ff)}] Carregando modelo de landmarks para câmera {camera.camera_name.value()}...")
-                    
-                    device_name = f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu"
-                    landmarks_model = LandmarksModelFactory.create(
-                        model_path=settings.yolo.landmarks_model_path,
-                        device=device_name
-                    )
-                    
-                    landmarks_info = landmarks_model.get_model_info()
-                    logger.info(
-                        f"[{i}/{len(cameras_ff)}] Modelo de landmarks carregado: "
-                        f"backend={landmarks_info['backend']}, "
-                        f"device={landmarks_info['device']}, "
-                        f"keypoints={landmarks_info['num_keypoints']}"
-                    )
-                    
-                    # Cria wrapper YOLOLandmarksDetector para interface de domínio
-                    landmarks_detector = YOLOLandmarksDetector(landmarks_model)
-                    
-                except Exception as e:
-                    logger.warning(
-                        f"[{i}/{len(cameras_ff)}] Erro ao carregar modelo de landmarks: {e}. "
-                        f"Prosseguindo sem landmarks dedicado."
-                    )
+            # POOL GLOBAL de landmarks (carregado uma única vez no início)
+            # Não precisa carregar landmarks_detector por câmera
             
             # Cria ProcessFaceDetectionUseCase
             # YOLO gerencia o stream internamente, não precisa de RTSPStreamReader
@@ -371,10 +507,10 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
                 movement_detection_service=movement_detection_service,
                 track_validation_service=track_validation_service,
                 track_lifecycle_service=track_lifecycle_service,
-                landmarks_detector=landmarks_detector,
-                landmarks_queue=None,  # TODO: implementar se necessário
-                landmarks_results_cache=None,
-                landmarks_cache_lock=None,
+                landmarks_detector=landmarks_detector,  # Detector GLOBAL compartilhado
+                landmarks_queue=landmarks_queue,  # POOL GLOBAL de landmarks
+                landmarks_results_cache=landmarks_cache,  # Cache global compartilhado
+                landmarks_cache_lock=landmarks_cache_lock,  # Lock para thread-safety
                 gpu_id=gpu_id,
                 image_save_service=image_save_service,
                 face_quality_service=face_quality_service,

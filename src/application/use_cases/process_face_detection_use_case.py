@@ -155,36 +155,16 @@ class ProcessFaceDetectionUseCase:
         # OTIMIZAÇÃO: Buffer preallocado para bboxes (evita alocações repetidas)
         self.bbox_buffer = np.empty(4, dtype=np.float32)
         
-        # OTIMIZAÇÃO 1: Worker assíncrono de landmarks
-        # Detecta se está em GPU ou CPU para escolher batch size adequado
-        try:
-            import torch
-            is_gpu = torch.cuda.is_available() and 'cuda' in str(gpu_id)
-        except ImportError:
-            is_gpu = False  # torch não disponível - assume CPU
-        self._landmarks_batch_size = gpu_batch_size if is_gpu else cpu_batch_size
-        
-        self._landmarks_queue: Optional[Queue] = None
-        self._landmarks_worker: Optional[threading.Thread] = None
-        self._landmarks_worker_running = False
-        self._landmarks_results_cache: Dict[int, Optional[np.ndarray]] = {}
+        # OTIMIZAÇÃO: Pool GLOBAL de landmarks (compartilhado entre todas as câmeras)
+        # Recebe queue, cache e lock criados em run.py
+        self._landmarks_queue = landmarks_queue
+        self._landmarks_results_cache = landmarks_results_cache  # Cache global: {camera_id: {event_id: landmarks}}
+        self._landmarks_cache_lock = landmarks_cache_lock  # Lock para acesso thread-safe
         self._event_id_counter = 0
         
-        if self.landmarks_detector is not None:
-            # Fila: 3x o batch size (buffer para evitar bloqueio)
-            landmarks_queue_size = self._landmarks_batch_size * 3
-            self._landmarks_queue = Queue(maxsize=landmarks_queue_size)
-            self._landmarks_worker_running = True
-            self._landmarks_worker = threading.Thread(
-                target=self._landmarks_batch_worker,
-                name=f"Landmarks-Worker-{camera.camera_id.value()}",
-                daemon=True
-            )
-            self._landmarks_worker.start()
+        if self.landmarks_detector is not None and self._landmarks_queue is not None:
             self.logger.info(
-                f"Worker assíncrono de landmarks iniciado "
-                f"(fila: {landmarks_queue_size}, batch: {self._landmarks_batch_size}, "
-                f"dispositivo: {'GPU' if is_gpu else 'CPU'})"
+                f"Usando pool GLOBAL de landmarks (fila compartilhada entre câmeras)"
             )
 
     def start(self) -> None:
@@ -210,19 +190,14 @@ class ProcessFaceDetectionUseCase:
         """
         self.running = False
         
-        # Para worker de landmarks
-        if self._landmarks_worker is not None and self._landmarks_worker_running:
-            self._landmarks_worker_running = False
-            try:
-                # Envia sinal de parada
-                if self._landmarks_queue is not None:
-                    self._landmarks_queue.put(None, timeout=0.5)
-            except:
-                pass
-            
-            # Aguarda finalização
-            self._landmarks_worker.join(timeout=2.0)
-            self.logger.info("Landmarks worker finalizado")
+        # POOL GLOBAL de landmarks não é parado aqui (gerenciado em run.py)
+        # Apenas limpa cache desta câmera
+        if self._landmarks_cache_lock is not None and self._landmarks_results_cache is not None:
+            camera_id = self.camera.camera_id.value()
+            with self._landmarks_cache_lock:
+                if camera_id in self._landmarks_results_cache:
+                    del self._landmarks_results_cache[camera_id]
+                    self.logger.info(f"Cache de landmarks da câmera {camera_id} limpo")
         
         # Finaliza serviço de salvamento de imagens
         if self.image_save_service is not None:
@@ -236,117 +211,6 @@ class ProcessFaceDetectionUseCase:
             f"ProcessFaceDetectionUseCase finalizado para câmera "
             f"{self.camera.camera_name.value()}"
         )
-
-    def _landmarks_batch_worker(self) -> None:
-        """
-        Worker thread dedicado para inferência assíncrona de landmarks em lote.
-        
-        OTIMIZAÇÃO CRÍTICA #1: Processamento Assíncrono
-        - Não bloqueia thread principal de detecção
-        - Acumula crops em batch e processa todos de uma vez
-        - Timeout de 100ms para não esperar batch completo
-        - Ganho: +15-25ms por frame, +10-15% throughput
-        """
-        if self._landmarks_queue is None or self.landmarks_detector is None:
-            return  # Safety check
-        
-        self.logger.info("Landmarks batch worker iniciado")
-        
-        batch_buffer = []  # Buffer: [(event_id, face_crop), ...]
-        
-        while self._landmarks_worker_running:
-            try:
-                # FASE 1: Pega primeiro item (timeout 100ms)
-                try:
-                    item = self._landmarks_queue.get(timeout=0.1)
-                    
-                    if item is None:  # Sinal de parada
-                        self.logger.info("Landmarks worker recebeu sinal de parada")
-                        break
-                    
-                    batch_buffer.append(item)
-                except Empty:
-                    # Timeout - processa batch parcial se existir
-                    if not batch_buffer:
-                        continue
-                
-                # FASE 2: Acumula até completar batch (timeout 100ms total)
-                while len(batch_buffer) < self._landmarks_batch_size:
-                    try:
-                        item = self._landmarks_queue.get(timeout=0.01)
-                        if item is None:
-                            break
-                        batch_buffer.append(item)
-                    except Empty:
-                        break  # Timeout - processa o que tem
-                
-                if not batch_buffer:
-                    continue
-                
-                # FASE 3: Processa batch completo
-                try:
-                    event_ids = [item[0] for item in batch_buffer]
-                    crops = [item[1] for item in batch_buffer]
-                    
-                    # OTIMIZAÇÃO #2: Batch inference verdadeiro (8× mais rápido)
-                    try:
-                        batch_results = self.landmarks_detector.predict_batch(
-                            face_crops=crops,
-                            conf=self.conf_threshold,
-                            verbose=False
-                        )
-                        
-                        # Armazena resultados no cache
-                        for event_id, result in zip(event_ids, batch_results):
-                            if result is not None:
-                                landmarks_array, _ = result
-                                self._landmarks_results_cache[event_id] = landmarks_array
-                            else:
-                                self._landmarks_results_cache[event_id] = None
-                    
-                    except Exception as e:
-                        # Fallback: batch falhou, tenta individual
-                        self.logger.warning(f"Batch inference falhou, usando fallback: {e}")
-                        for event_id, crop in zip(event_ids, crops):
-                            try:
-                                if crop.size > 0:
-                                    result = self.landmarks_detector.predict(
-                                        face_crop=crop,
-                                        conf=self.conf_threshold,
-                                        verbose=False
-                                    )
-                                    if result is not None:
-                                        landmarks_array, _ = result
-                                        self._landmarks_results_cache[event_id] = landmarks_array
-                                    else:
-                                        self._landmarks_results_cache[event_id] = None
-                                else:
-                                    self._landmarks_results_cache[event_id] = None
-                            except Exception:
-                                self._landmarks_results_cache[event_id] = None
-                    
-                    # Marca tarefas como concluídas
-                    for _ in batch_buffer:
-                        self._landmarks_queue.task_done()
-                
-                except Exception as e:
-                    self.logger.error(f"Erro no processamento de batch: {e}")
-                    for _ in batch_buffer:
-                        try:
-                            self._landmarks_queue.task_done()
-                        except:
-                            pass
-                
-                # Limpa buffer
-                batch_buffer.clear()
-                
-            except Exception as e:
-                if not self._landmarks_worker_running:
-                    break
-                self.logger.error(f"Erro no landmarks worker: {e}")
-                continue
-        
-        self.logger.info("Landmarks batch worker finalizado")
 
     def _process_stream(self) -> None:
         """
@@ -440,23 +304,31 @@ class ProcessFaceDetectionUseCase:
                 bboxes.append(self.bbox_buffer.copy())
                 confidences.append(float(box.conf[0]))
         
-        # OTIMIZAÇÃO #1: Inferência ASSÍNCRONA de landmarks (NÃO BLOQUEIA)
-        # Enfileira crops para processamento em worker thread
+        # OTIMIZAÇÃO #1: Inferência ASSÍNCRONA de landmarks via POOL GLOBAL
+        # Enfileira crops para processamento no pool compartilhado
         landmarks_results = []
         if self._landmarks_queue is not None and len(face_crops) > 0:
+            camera_id = self.camera.camera_id.value()
+            
             for i, face_crop in enumerate(face_crops):
                 self._event_id_counter += 1
                 event_id = self._event_id_counter
                 
-                # Enfileira crop para processamento assíncrono
+                # Enfileira crop para processamento no pool global
+                # Formato: (camera_id, event_id, face_crop)
                 try:
-                    self._landmarks_queue.put_nowait((event_id, face_crop.copy()))
+                    self._landmarks_queue.put_nowait((camera_id, event_id, face_crop.copy()))
                 except:
                     # Fila cheia - usa fallback (sem log para evitar spam)
                     pass
                 
-                # Tenta buscar resultado já processado (de frame anterior)
-                landmarks_array = self._landmarks_results_cache.pop(event_id, None)
+                # Tenta buscar resultado já processado no cache global (thread-safe)
+                landmarks_array = None
+                if self._landmarks_cache_lock is not None:
+                    with self._landmarks_cache_lock:
+                        camera_cache = self._landmarks_results_cache.get(camera_id, {})
+                        landmarks_array = camera_cache.pop(event_id, None)
+                
                 if landmarks_array is not None:
                     landmarks_results.append((landmarks_array, 1.0))
                 else:
