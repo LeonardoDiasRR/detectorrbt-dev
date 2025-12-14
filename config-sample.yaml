@@ -23,9 +23,12 @@ landmarks_detection_model: "yolo-models/yolov8n-face.pt"
 ## deep_sort.yaml <- mais preciso
 tracker: "bytetrack.yaml"  
 
-# Confiança mínima para considerar uma detecção válida
-conf: 0.1  # Valor padrão: 0.1 igual o do algoritmo ByteTrack
-iou: 0.07 # Quanto maior, mais restritivo
+# Parâmetros de detecção YOLO
+deteccao:
+  # Confiança mínima para considerar uma detecção válida
+  conf: 0.1  # Valor padrão: 0.1 igual o do algoritmo ByteTrack
+  # IOU threshold para NMS (Non-Maximum Suppression)
+  iou: 0.07  # Quanto maior, mais restritivo
 
 # Exibir na tela
 show: false

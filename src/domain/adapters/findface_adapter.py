@@ -100,7 +100,7 @@ class FindfaceAdapter:
             self.logger.error(f"Erro ao obter câmeras do FindFace: {e}", exc_info=True)
             return []
 
-    def send_event(self, event: Event) -> Optional[Dict]:
+    def send_event(self, event: Event, track_id: Optional[int] = None) -> Optional[Dict]:
         """
         Envia um evento de face para o FindFace.
         Converte a entidade Event do domínio para o formato esperado pela API.
@@ -110,6 +110,7 @@ class FindfaceAdapter:
         (que leva ~12-18ms) seja feito em paralelo sem bloquear a detecção.
 
         :param event: Entidade Event do domínio.
+        :param track_id: ID do track (opcional, para logs de erro).
         :return: Resposta do FindFace ou None em caso de erro.
         :raises TypeError: Se event não for Event.
         """
@@ -191,15 +192,24 @@ class FindfaceAdapter:
             except Exception:
                 desc = None
 
+            # Usa track_id fornecido ou event.id como fallback
+            track_display = track_id if track_id is not None else event.id.value()
+            
             if desc:
-                # Loga apenas o campo 'desc' conforme solicitado
+                # Loga apenas o campo 'desc' conforme solicitado, incluindo Track, Qualidade e Confiança
                 self.logger.error(
-                    f"Erro ao enviar evento para FindFace - Camera: {event.camera_id.value()}: {desc}"
+                    f"Erro ao enviar evento para FindFace - Camera: {event.camera_id.value()}, "
+                    f"Track: {track_display}, "
+                    f"Qualidade: {event.face_quality_score.value():.4f}, "
+                    f"Confiança: {event.confidence.value():.4f}: {desc}"
                 )
             else:
                 # Fallback: log completo com stacktrace para investigação
                 self.logger.error(
-                    f"Erro ao enviar evento para FindFace - Camera: {event.camera_id.value()}: {e}",
+                    f"Erro ao enviar evento para FindFace - Camera: {event.camera_id.value()}, "
+                    f"Track: {track_display}, "
+                    f"Qualidade: {event.face_quality_score.value():.4f}, "
+                    f"Confiança: {event.confidence.value():.4f}: {e}",
                     exc_info=True
                 )
             return None

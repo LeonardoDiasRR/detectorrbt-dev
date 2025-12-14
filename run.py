@@ -209,7 +209,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
                 camera_id, camera_name, track_id, event, total_events = event_data
                 
                 try:
-                    resposta = adapter.send_event(event)
+                    resposta = adapter.send_event(event, track_id=track_id)
                     
                     if resposta:
                         worker_logger.info(
@@ -462,8 +462,8 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
                 face_quality_service=face_quality_service,
                 tracker_config=settings.bytetrack.tracker_config,
                 show_video=settings.processing.show_video,
-                conf_threshold=settings.yolo.conf_threshold,
-                iou_threshold=settings.yolo.iou_threshold,
+                conf_threshold=settings.yolo.conf,
+                iou_threshold=settings.yolo.iou,
                 max_frames_lost=settings.bytetrack.max_frames_lost,
                 verbose_log=settings.processing.verbose_log,
                 save_images=settings.storage.save_images,

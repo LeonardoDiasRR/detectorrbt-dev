@@ -45,7 +45,7 @@ class YOLOModelAdapter(IDetectionModel):
         tracker: str,
         persist: bool = True,
         conf: float = 0.1,
-        iou: float = 0.2,
+        iou: float = 0.07,
         show: bool = False,
         stream: bool = True,
         batch: int = 4,

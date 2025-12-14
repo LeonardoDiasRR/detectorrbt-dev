@@ -27,8 +27,8 @@ class YOLOFaceDetector(IFaceDetector):
     def detect_and_track(
         self,
         source: str,
-        conf_threshold: float = 0.5,
-        iou_threshold: float = 0.5,
+        conf_threshold: float = 0.1,
+        iou_threshold: float = 0.07,
         inference_size: Optional[Tuple[int, int]] = None,
         batch: int = 1,
         show: bool = False
@@ -44,25 +44,22 @@ class YOLOFaceDetector(IFaceDetector):
         :param show: Se True, exibe o vídeo em tempo real.
         :return: Generator que produz resultados de detecção YOLO.
         """
-        # Prepara parâmetros para o modelo YOLO
-        track_params = {
-            'source': source,
-            'tracker': 'bytetrack.yaml',
-            'persist': True,  # Mantém IDs entre frames
-            'conf': conf_threshold,
-            'iou': iou_threshold,
-            'verbose': False,
-            'stream': True,  # Retorna generator
-            'batch': batch,
-            'show': show
-        }
+        # Determina tamanho de inferência
+        imgsz = inference_size if inference_size is not None else 640
         
-        # Adiciona inference_size se fornecido
-        if inference_size is not None:
-            track_params['imgsz'] = inference_size
-        
-        # Chama .track() do YOLO (retorna generator)
-        for result in self.model.track(**track_params):
+        # Chama .track() do YOLO com parâmetros explícitos (retorna generator)
+        for result in self.model.track(
+            source=source,
+            tracker='bytetrack.yaml',
+            persist=True,
+            conf=conf_threshold,
+            iou=iou_threshold,
+            verbose=False,
+            stream=True,
+            batch=batch,
+            show=show,
+            imgsz=imgsz
+        ):
             yield result
 
     def get_model_info(self) -> dict:

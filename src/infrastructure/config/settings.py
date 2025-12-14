@@ -21,8 +21,8 @@ class YOLOConfig:
     """Configuração do modelo YOLO."""
     model_path: str = "yolov8n-face.pt"
     landmarks_model_path: str = "yolov8n-face.pt"
-    conf_threshold: float = 0.1
-    iou_threshold: float = 0.2
+    conf: float = 0.1
+    iou: float = 0.07
 
 
 @dataclass
