@@ -208,7 +208,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
                         worker_logger.info(
                             f"✓ FindFace - Melhor face do Track {track_id} enviada com sucesso! "
                             f"Camera: {camera_name} (ID: {camera_id}) | Total de eventos: {total_events} | "
-                            f"Qualidade: {event.face_quality_score.value:.4f} | Confiança: {event.confidence.value:.4f}"
+                            f"Qualidade: {event.face_quality_score.value():.4f} | Confiança: {event.confidence.value():.4f}"
                         )
                     # else:
                     #     worker_logger.warning(
