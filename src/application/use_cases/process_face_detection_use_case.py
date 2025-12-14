@@ -170,6 +170,16 @@ class ProcessFaceDetectionUseCase:
             self.logger.info(
                 f"Usando pool GLOBAL de landmarks (fila compartilhada entre câmeras)"
             )
+        
+        # Log de configuração de salvamento de imagens
+        if self.save_images and self.image_save_service is not None:
+            self.logger.info(
+                f"Salvamento de imagens HABILITADO - "
+                f"Diretório: {self.project_dir}/{self.results_dir}/{self.camera.camera_name.value()} "
+                f"(JPEG quality: {self.jpeg_quality}%)"
+            )
+        else:
+            self.logger.info("Salvamento de imagens DESABILITADO")
 
     def start(self) -> None:
         """
@@ -494,6 +504,8 @@ class ProcessFaceDetectionUseCase:
             import cv2
             from pathlib import Path
             
+            self.logger.debug(f"Iniciando preparação de salvamento para track {track_id}")
+            
             # Obtém fullframe e bbox
             full_frame = event.frame.full_frame.value().copy()  # Copia para não modificar original
             bbox = event.bbox.value()  # (x1, y1, x2, y2)
@@ -530,10 +542,12 @@ class ProcessFaceDetectionUseCase:
             # Cria path de salvamento
             # Formato: project_dir/results_dir/camera_name/track_XXXXX_timestamp.jpg
             timestamp = event.frame.timestamp.value()
+            # Formata timestamp como string (YYYYMMDD_HHMMSS)
+            timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S_%f")[:-3]  # Remove últimos 3 dígitos de microsegundos
             camera_name = self.camera.camera_name.value()
             
             output_dir = Path(self.project_dir) / self.results_dir / camera_name
-            filename = f"track_{track_id:05d}_{timestamp}.jpg"
+            filename = f"track_{track_id:05d}_{timestamp_str}.jpg"
             filepath = output_dir / filename
             
             # Enfileira para salvamento assíncrono
@@ -543,8 +557,10 @@ class ProcessFaceDetectionUseCase:
                 jpeg_quality=self.jpeg_quality
             )
             
-            if not success and self.verbose_log:
-                self.logger.warning(f"Falha ao enfileirar imagem do track {track_id}")
+            if success:
+                self.logger.info(f"✓ Imagem enfileirada para salvamento: {filename}")
+            else:
+                self.logger.warning(f"✗ Falha ao enfileirar imagem do track {track_id} (fila cheia)")
             
         except Exception as e:
             self.logger.error(f"Erro ao preparar salvamento de imagem do track {track_id}: {e}")

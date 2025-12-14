@@ -133,9 +133,12 @@ class ImageSaveService:
                     
                     saved_count += 1
                     
+                    # Log individual para cada imagem salva
+                    self.logger.info(f"✓ Imagem salva: {filepath.name}")
+                    
                     # Log periódico a cada 50 imagens salvas
                     if saved_count % 50 == 0:
-                        self.logger.debug(
+                        self.logger.info(
                             f"Progresso: {saved_count} imagens salvas, "
                             f"{error_count} erros, "
                             f"fila: {self._save_queue.qsize()}"
@@ -144,7 +147,7 @@ class ImageSaveService:
                 except Exception as e:
                     error_count += 1
                     self.logger.error(
-                        f"Erro ao salvar imagem {filepath.name}: {e}"
+                        f"✗ Erro ao salvar imagem {filepath.name}: {e}"
                     )
                 
                 finally:

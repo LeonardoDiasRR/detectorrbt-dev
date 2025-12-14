@@ -55,9 +55,8 @@ class Event:
             # Import aqui para evitar circular import
             from src.domain.services.face_quality_service import FaceQualityService
             self._face_quality_score = FaceQualityService.calculate_quality(
-                bbox=bbox,
-                confidence=confidence,
                 frame=frame,
+                bbox=bbox,
                 landmarks=landmarks
             )
         else:
