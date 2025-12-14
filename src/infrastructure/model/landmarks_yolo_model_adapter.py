@@ -28,8 +28,19 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         self.device = device
         self.model = YOLO(model_path)
         
-        # Move modelo para o dispositivo especificado
-        self.model.to(device)
+        # Valida se o device está disponível antes de mover o modelo
+        import torch
+        if isinstance(device, int):
+            # Device numérico (GPU)
+            if not torch.cuda.is_available():
+                logger.warning(f"⚠ GPU {device} não disponível, usando CPU")
+                self.device = "cpu"
+                self.model.to("cpu")
+            else:
+                self.model.to(device)
+        else:
+            # Device string ('cpu', 'cuda', etc)
+            self.model.to(device)
         
         # Detecta número de keypoints do modelo
         self._num_keypoints = self._detect_num_keypoints()

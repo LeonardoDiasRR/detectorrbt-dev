@@ -243,13 +243,50 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     
     logger.info(f"Pool de {num_findface_workers} workers FindFace iniciado")
     
+    # Limpa o diretório de imagens antes de iniciar
+    imagens_dir = os.path.join(os.path.dirname(__file__), settings.storage.project_dir)
+    if os.path.exists(imagens_dir):
+        import shutil
+        shutil.rmtree(imagens_dir)
+        logger.info(f"Diretório '{imagens_dir}' limpo.")
+    
+    os.makedirs(imagens_dir, exist_ok=True)
+    logger.info(f"Diretório '{imagens_dir}' criado.")
+    
+    processors = []
+    
+    # Obtém câmeras ativas usando DDD (Repository + Use Case)
+    camera_repository = CameraRepositoryFindface(ff, camera_prefix=settings.findface.camera_prefix)
+    load_cameras_use_case = LoadCamerasUseCase(camera_repository, settings)
+    cameras_ff = load_cameras_use_case.execute()
+    
+    logger.info(f"Total de {len(cameras_ff)} câmera(s) ativas para processar.")
+    
+    # Obtém lista de GPUs a usar ANTES de carregar modelos
+    import torch
+    gpu_devices = settings.processing.gpu_devices
+    num_gpus = len(gpu_devices)
+    
+    # Verifica se há GPUs disponíveis no sistema
+    cuda_available = torch.cuda.is_available()
+    if cuda_available and gpu_devices:
+        landmarks_device = gpu_devices[0]
+        logger.info(f"Distribuindo {len(cameras_ff)} câmera(s) entre {num_gpus} GPU(s): {gpu_devices}")
+        logger.info(f"✓ CUDA disponível - Modelo de landmarks será carregado na GPU: {landmarks_device}")
+    else:
+        landmarks_device = "cpu"
+        if not cuda_available:
+            logger.warning(f"⚠ CUDA não disponível - Modelos serão carregados em CPU")
+        logger.info(f"Distribuindo {len(cameras_ff)} câmera(s) em CPU")
+        logger.info(f"Modelo de landmarks será carregado em CPU")
+    
     # Carrega detector de landmarks UMA VEZ para ser compartilhado entre todas as câmeras
     # Inferência SÍNCRONA em batch dentro de cada câmera
     landmarks_detector = None
     try:
         logger.info(f"Iniciando carregamento do detector de landmarks...")
         logger.info(f"Modelo de landmarks: {settings.yolo.landmarks_model_path}")
-        logger.info(f"Device: {settings.device}")
+        logger.info(f"Device para landmarks: {landmarks_device}")
         
         from src.infrastructure.ml.yolo_landmarks_detector import YOLOLandmarksDetector
         from src.infrastructure.model.landmarks_model_factory import LandmarksModelFactory
@@ -260,7 +297,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         logger.info(f"Criando modelo de landmarks via factory...")
         landmarks_model = LandmarksModelFactory.create(
             model_path=settings.yolo.landmarks_model_path,
-            device=settings.device
+            device=landmarks_device
         )
         logger.info(f"Modelo de landmarks criado com sucesso")
         
@@ -268,6 +305,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         logger.info(f"Criando detector de landmarks...")
         landmarks_detector = YOLOLandmarksDetector(model=landmarks_model)
         logger.info(f"✓ Detector de landmarks carregado (SÍNCRONO): {settings.yolo.landmarks_model_path}")
+        logger.info(f"✓ Device usado: {landmarks_device}")
         logger.info(f"✓ landmarks_detector type: {type(landmarks_detector)}")
         logger.info(f"✓ landmarks_detector is None: {landmarks_detector is None}")
     except Exception as e:
@@ -292,11 +330,6 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     cameras_ff = load_cameras_use_case.execute()
     
     logger.info(f"Total de {len(cameras_ff)} câmera(s) ativas para processar.")
-    
-    # Obtém lista de GPUs a usar (distribuição round-robin)
-    gpu_devices = settings.processing.gpu_devices
-    num_gpus = len(gpu_devices)
-    logger.info(f"Distribuindo {len(cameras_ff)} câmera(s) entre {num_gpus} GPU(s): {gpu_devices}")
     
     # Cria serviços de domínio compartilhados
     track_validation_service = TrackValidationService(
@@ -324,17 +357,21 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     # Cria serviços de detecção - CADA CÂMERA COM SEU PRÓPRIO MODELO
     for i, camera in enumerate(cameras_ff, 1):
         try:
-            # Determina GPU para esta câmera (round-robin)
-            gpu_id = gpu_devices[(i - 1) % num_gpus]
-            logger.info(f"[{i}/{len(cameras_ff)}] Câmera {camera.camera_name.value()} → GPU {gpu_id}")
+            # Determina device para esta câmera
+            if cuda_available and gpu_devices:
+                # Round-robin entre GPUs disponíveis
+                gpu_id = gpu_devices[(i - 1) % num_gpus]
+                logger.info(f"[{i}/{len(cameras_ff)}] Câmera {camera.camera_name.value()} → GPU {gpu_id}")
+            else:
+                gpu_id = "cpu"
+                logger.info(f"[{i}/{len(cameras_ff)}] Câmera {camera.camera_name.value()} → CPU")
             
             # IMPORTANTE: Cria uma instância SEPARADA do modelo para cada câmera
             # Isso evita conflitos de thread-safety
             logger.info(f"[{i}/{len(cameras_ff)}] Carregando modelo para câmera {camera.camera_name.value()}...")
             
-            # Configura GPU antes de criar o modelo
-            import torch
-            if torch.cuda.is_available():
+            # Configura GPU antes de criar o modelo (se disponível)
+            if cuda_available and isinstance(gpu_id, int):
                 torch.cuda.set_device(gpu_id)
                 logger.info(f"[{i}/{len(cameras_ff)}] GPU {gpu_id} selecionada para câmera {camera.camera_name.value()}")
             
