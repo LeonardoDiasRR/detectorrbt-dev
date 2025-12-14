@@ -319,7 +319,7 @@ class ProcessFaceDetectionUseCase:
             try:
                 batch_landmarks = self.landmarks_detector.predict_batch(
                     face_crops=face_crops,
-                    conf=0.4,
+                    conf=self.conf_threshold,
                     verbose=False
                 )
                 
