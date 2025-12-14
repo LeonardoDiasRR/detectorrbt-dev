@@ -145,15 +145,6 @@ performance:
   # Processa 1 a cada N frames (reduz carga proporcionalmente)
   detection_skip_frames: 2
   
-  # Processamento paralelo de faces detectadas
-  max_parallel_workers: 10
-  
-  # Cálculo vetorizado de qualidade facial
-  batch_quality_calculation: true
-  
-  # Fila assíncrona para envio ao FindFace
-  findface_queue_size: 200
-
 tensorrt:
   enabled: true
   precision: FP16  # Essencial para performance
