@@ -34,9 +34,8 @@ show: false
 # Utiliza múltiplos critérios ponderados para cálculo de qualidade
 qualidade_face:
   confianca_deteccao: 3
-  tamanho_bbox: 4
+  tamanho_bbox: 1
   face_frontal: 6
-  proporcao_bbox: 1
 
 # Modo verboso de log
 verbose_log: false

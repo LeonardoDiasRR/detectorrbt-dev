@@ -218,10 +218,11 @@ class ProcessFaceDetectionUseCase:
             
             self.frame_count += 1
             
-            # OTIMIZAÇÃO: Skip frames para economizar processamento
+            # OTIMIZAÇÃO: Processa detecções a cada N frames (economiza processamento)
             # Aplica APÓS inferência do YOLO e ANTES de criar eventos
-            if self.detection_skip_frames > 0:
-                if self.frame_count % (self.detection_skip_frames + 1) != 0:
+            # Exemplo: se detection_skip_frames=2, processa frames 1, 3, 5, 7... (a cada 2 frames)
+            if self.detection_skip_frames > 1:
+                if self.frame_count % self.detection_skip_frames != 1:
                     # Pula processamento deste frame, mas mantém tracking ativo
                     continue
             
@@ -277,6 +278,11 @@ class ProcessFaceDetectionUseCase:
             if track_id is None:
                 continue
             
+            # FILTRO 1: Verifica confiança mínima (filtragem no frame)
+            confidence = float(box.conf[0])
+            if confidence < self.track_validation_service.min_confidence_threshold:
+                continue
+            
             detected_track_ids.add(track_id)
             
             # OTIMIZAÇÃO: Usa buffer preallocado para bbox
@@ -287,6 +293,11 @@ class ProcessFaceDetectionUseCase:
             x1, y1 = max(0, x1), max(0, y1)
             x2, y2 = min(w, x2), min(h, y2)
             
+            # FILTRO 2: Verifica largura mínima do bbox (filtragem no frame)
+            bbox_width = x2 - x1
+            if bbox_width < self.track_validation_service.min_bbox_width:
+                continue
+            
             # Crop da face
             face_crop = frame_vo.ndarray_readonly[y1:y2, x1:x2]
             
@@ -294,7 +305,7 @@ class ProcessFaceDetectionUseCase:
                 face_crops.append(face_crop)
                 track_ids.append(track_id)
                 bboxes.append(self.bbox_buffer.copy())
-                confidences.append(float(box.conf[0]))
+                confidences.append(confidence)
                 
                 # Extrai landmarks da primeira inferência se disponível
                 if has_keypoints_from_yolo:
@@ -344,6 +355,9 @@ class ProcessFaceDetectionUseCase:
         for i, (track_id, bbox, confidence, landmarks_result) in enumerate(
             zip(track_ids, bboxes, confidences, landmarks_results)
         ):
+            # Extrai crop do bbox para thumbnail
+            face_crop = face_crops[i] if i < len(face_crops) else None
+            
             # Cria evento a partir da detecção
             event = self.event_creation_service.create_event_from_detection(
                 camera=self.camera,
@@ -354,6 +368,10 @@ class ProcessFaceDetectionUseCase:
                 frame_entity=frame_vo,
                 index=i
             )
+            
+            # Armazena crop no evento para uso posterior (salvamento de thumbnail)
+            # Criamos um atributo dinâmico para evitar modificar a entidade Event
+            event._face_crop = face_crop
             
             # Cria ou recupera track
             if track_id not in self.active_tracks:
@@ -430,13 +448,14 @@ class ProcessFaceDetectionUseCase:
         # Valida track
         is_valid, invalid_reason = self.track_validation_service.is_valid(track)
         
+        # Obtém melhor evento para salvamento (válido ou não)
+        best_event = self.track_lifecycle_service.get_best_event(track)
+        
         if is_valid:
-            # Obtém melhor evento
-            best_event = self.track_lifecycle_service.get_best_event(track)
             if best_event is not None:
-                # SALVAMENTO ASSÍNCRONO: Salva fullframe com bbox desenhado
+                # SALVAMENTO ASSÍNCRONO: Salva fullframe com bbox desenhado (bbox verde para tracks válidos)
                 if self.save_images and self.image_save_service is not None:
-                    self._save_event_image_async(best_event, track_id)
+                    self._save_event_image_async(best_event, track_id, is_valid=True)
                 
                 # Enfileira para envio ao FindFace
                 try:
@@ -447,16 +466,6 @@ class ProcessFaceDetectionUseCase:
                         best_event,
                         track.event_count
                     ))
-                    
-                    # Log de track enviado (apenas em modo verbose)
-                    if self.verbose_log:
-                        self.logger.info(
-                            f"✓ Track {track_id} enviado para a fila do Findface | "
-                            f"Eventos: {total_events}, "
-                            f"Movimento: {'Sim' if has_movement else 'Não'}, "
-                            f"Qualidade: {best_quality:.4f}, "
-                            f"Confiança: {best_confidence:.2f}"
-                        )
                 except Exception as e:
                     # Fila cheia - log periódico a cada 100 ocorrências
                     self._findface_queue_full_count += 1
@@ -477,6 +486,10 @@ class ProcessFaceDetectionUseCase:
                 f"Qualidade: {best_quality:.4f}, "
                 f"Confiança: {best_confidence:.2f}"
             )
+            
+            # SALVAMENTO ASSÍNCRONO: Salva fullframe com bbox vermelho para tracks descartados
+            if best_event is not None and self.save_images and self.image_save_service is not None:
+                self._save_event_image_async(best_event, track_id, is_valid=False)
         
         # Remove track
         del self.active_tracks[track_id]
@@ -491,15 +504,17 @@ class ProcessFaceDetectionUseCase:
         if self._tracks_finalized_count % 500 == 0:
             gc.collect()
     
-    def _save_event_image_async(self, event: Event, track_id: int) -> None:
+    def _save_event_image_async(self, event: Event, track_id: int, is_valid: bool = True) -> None:
         """
-        Salva fullframe com bbox do evento desenhado (assíncrono).
+        Salva fullframe com bbox do evento desenhado e thumbnail com landmarks (assíncrono).
         
         :param event: Evento com o melhor frame.
         :param track_id: ID do track para nomenclatura.
+        :param is_valid: Se True, desenha bbox verde; se False, desenha bbox vermelho.
         """
         try:
             import cv2
+            import numpy as np
             from pathlib import Path
             
             self.logger.debug(f"Iniciando preparação de salvamento para track {track_id}")
@@ -508,12 +523,18 @@ class ProcessFaceDetectionUseCase:
             full_frame = event.frame.full_frame.value().copy()  # Copia para não modificar original
             bbox = event.bbox.value()  # (x1, y1, x2, y2)
             
-            # Desenha bbox verde (RGB: 0, 255, 0) com espessura 2
-            x1, y1, x2, y2 = bbox
-            cv2.rectangle(full_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            # Define cor do bbox: verde para válidos, vermelho para descartados
+            bbox_color = (0, 255, 0) if is_valid else (0, 0, 255)  # BGR: verde ou vermelho
             
-            # Adiciona label com track_id e confiança
-            label = f"Track {track_id} - Conf: {event.confidence.value():.2f}"
+            # Desenha bbox com espessura 2
+            x1, y1, x2, y2 = bbox
+            cv2.rectangle(full_frame, (x1, y1), (x2, y2), bbox_color, 2)
+            
+            # Adiciona label com track_id, confiança e qualidade
+            # Formato: 'Track: XX, C: YY, Q: ZZ'
+            confidence = event.confidence.value()
+            quality = event.face_quality_score.value()
+            label = f"Track: {track_id}, C: {confidence:.2f}, Q: {quality:.2f}"
             label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
             label_y = max(y1 - 10, label_size[1] + 10)
             
@@ -522,7 +543,7 @@ class ProcessFaceDetectionUseCase:
                 full_frame,
                 (x1, label_y - label_size[1] - 5),
                 (x1 + label_size[0], label_y + 5),
-                (0, 255, 0),
+                bbox_color,
                 -1
             )
             
@@ -548,17 +569,55 @@ class ProcessFaceDetectionUseCase:
             filename = f"track_{track_id:05d}_{timestamp_str}.jpg"
             filepath = output_dir / filename
             
-            # Enfileira para salvamento assíncrono
+            # Enfileira para salvamento assíncrono do fullframe
             success = self.image_save_service.save_async(
                 image=full_frame,
                 filepath=filepath,
                 jpeg_quality=self.jpeg_quality
             )
             
-            if success:
-                self.logger.info(f"✓ Imagem enfileirada para salvamento: {filename}")
-            else:
-                self.logger.warning(f"✗ Falha ao enfileirar imagem do track {track_id} (fila cheia)")
+            if not success:
+                self.logger.warning(f"✗ Falha ao enfileirar imagem fullframe do track {track_id} (fila cheia)")
+            
+            # Salva thumbnail com landmarks desenhados (se disponível)
+            face_crop = getattr(event, '_face_crop', None)
+            landmarks = event.landmarks.value()
+            
+            if face_crop is not None and landmarks is not None and len(landmarks) > 0:
+                # Copia crop para não modificar original
+                crop_with_landmarks = face_crop.copy()
+                
+                # Define cores diferentes para cada landmark (5 pontos)
+                # Cores em BGR: azul, verde, vermelho, ciano, magenta
+                landmark_colors = [
+                    (255, 0, 0),    # Azul
+                    (0, 255, 0),    # Verde
+                    (0, 0, 255),    # Vermelho
+                    (255, 255, 0),  # Ciano
+                    (255, 0, 255)   # Magenta
+                ]
+                
+                # Desenha cada ponto com cor diferente
+                for idx, (x, y) in enumerate(landmarks):
+                    color = landmark_colors[idx % len(landmark_colors)]
+                    # Desenha círculo sólido de raio 3 pixels
+                    cv2.circle(crop_with_landmarks, (int(x), int(y)), 3, color, -1)
+                    # Desenha borda preta ao redor para melhor visibilidade
+                    cv2.circle(crop_with_landmarks, (int(x), int(y)), 3, (0, 0, 0), 1)
+                
+                # Nome do arquivo com sufixo '_crop'
+                filename_crop = f"track_{track_id:05d}_{timestamp_str}_crop.jpg"
+                filepath_crop = output_dir / filename_crop
+                
+                # Enfileira para salvamento assíncrono do crop
+                success_crop = self.image_save_service.save_async(
+                    image=crop_with_landmarks,
+                    filepath=filepath_crop,
+                    jpeg_quality=self.jpeg_quality
+                )
+                
+                if not success_crop:
+                    self.logger.warning(f"✗ Falha ao enfileirar imagem crop do track {track_id} (fila cheia)")
             
         except Exception as e:
             self.logger.error(f"Erro ao preparar salvamento de imagem do track {track_id}: {e}")

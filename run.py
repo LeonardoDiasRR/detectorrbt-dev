@@ -89,6 +89,13 @@ except Exception:
 # Configura logging com rotação
 log_file = os.path.join(os.path.dirname(__file__), "detectorrbt.log")
 
+# Limpa arquivo de log anterior (inicia com log limpo a cada execução)
+if os.path.exists(log_file):
+    try:
+        os.remove(log_file)
+    except Exception:
+        pass  # Se não conseguir remover, continua (sobrescreve)
+
 # Handler com rotação: 2MB por arquivo, máximo 3 backups (compactados)
 file_handler = RotatingFileHandler(
     log_file,

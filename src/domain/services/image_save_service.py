@@ -133,9 +133,6 @@ class ImageSaveService:
                     
                     saved_count += 1
                     
-                    # Log individual para cada imagem salva
-                    self.logger.info(f"✓ Imagem salva: {filepath.name}")
-                    
                     # Log periódico a cada 50 imagens salvas
                     if saved_count % 50 == 0:
                         self.logger.info(
