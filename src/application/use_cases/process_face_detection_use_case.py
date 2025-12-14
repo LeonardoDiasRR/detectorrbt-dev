@@ -259,11 +259,6 @@ class ProcessFaceDetectionUseCase:
         # Verifica se landmarks já vieram da primeira inferência (YOLO com keypoints)
         has_keypoints_from_yolo = hasattr(result, 'keypoints') and result.keypoints is not None
         
-        if has_keypoints_from_yolo:
-            self.logger.debug(f"✓ YOLO retornou keypoints na primeira inferência")
-        else:
-            self.logger.debug(f"✗ YOLO NÃO retornou keypoints - será necessária segunda inferência")
-        
         # IDs dos tracks detectados neste frame
         detected_track_ids = set()
         
@@ -313,50 +308,37 @@ class ProcessFaceDetectionUseCase:
         
         if has_keypoints_from_yolo:
             # Usa landmarks da primeira inferência (YOLO)
-            self.logger.info(f"✓ Usando landmarks da primeira inferência YOLO ({len(yolo_landmarks)} detecções)")
             for i, landmarks_array in enumerate(yolo_landmarks):
                 if landmarks_array is not None and len(landmarks_array) >= 5:
-                    # Confiança 1.0 pois veio da detecção principal
                     landmarks_results.append((landmarks_array, 1.0))
-                    self.logger.debug(f"  - Face {i}: {len(landmarks_array)} landmarks")
                 else:
                     landmarks_results.append(None)
-                    self.logger.warning(f"  - Face {i}: landmarks insuficientes ou None")
         
         elif self.landmarks_detector is not None and len(face_crops) > 0:
             # Landmarks NÃO vieram da primeira inferência - faz segunda inferência em BATCH
-            self.logger.info(f"⚙ Executando segunda inferência em batch para landmarks ({len(face_crops)} crops)")
             try:
                 batch_landmarks = self.landmarks_detector.predict_batch(
                     face_crops=face_crops,
-                    conf=0.5,
+                    conf=0.4,
                     verbose=False
                 )
                 
-                self.logger.debug(f"Segunda inferência retornou {len(batch_landmarks)} resultados")
-                
                 # Converte para formato esperado: List[Tuple[np.ndarray, float] | None]
-                for i, landmarks_data in enumerate(batch_landmarks):
+                for landmarks_data in batch_landmarks:
                     if landmarks_data is not None:
                         landmarks_array, conf = landmarks_data
                         if landmarks_array is not None and len(landmarks_array) >= 5:
                             landmarks_results.append((landmarks_array, conf))
-                            self.logger.debug(f"  - Face {i}: {len(landmarks_array)} landmarks (conf={conf:.2f})")
                         else:
                             landmarks_results.append(None)
-                            self.logger.warning(f"  - Face {i}: landmarks insuficientes")
                     else:
                         landmarks_results.append(None)
-                        self.logger.warning(f"  - Face {i}: predict_batch retornou None")
             except Exception as e:
                 self.logger.error(f"Erro na segunda inferência de landmarks: {e}", exc_info=True)
                 landmarks_results = [None] * len(face_crops)
         else:
             # Sem landmarks disponíveis
-            if self.landmarks_detector is None:
-                self.logger.warning("⚠ Detector de landmarks não configurado")
             landmarks_results = [None] * len(face_crops)
-            self.logger.debug(f"Sem landmarks para {len(face_crops)} faces")
         
         # Cria eventos para todas as detecções
         for i, (track_id, bbox, confidence, landmarks_result) in enumerate(

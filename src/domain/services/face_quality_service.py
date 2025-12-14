@@ -51,16 +51,12 @@ class FaceQualityService:
         OTIMIZAÇÃO: Usa NumPy vetorizado para cálculo de distâncias (25-30% mais rápido).
 
         :param landmarks: Landmarks faciais.
-        :return: Score de frontalidade (0.0 a 1.0).
+        :return: Score de frontalidade (0.0 a 1.0). Retorna 0.01 (fallback) se não houver landmarks.
         """
         landmarks_array = landmarks.value() if not landmarks.is_empty() else None
         
         if landmarks_array is None or len(landmarks_array) < 5:
-            logger.warning(
-                f"⚠ Landmarks ausentes ou insuficientes para cálculo de frontalidade. "
-                f"landmarks_array={'None' if landmarks_array is None else f'len={len(landmarks_array)}'}"
-            )
-            return 1.0
+            return 0.01  # Fallback quando não há landmarks
         
         # Desempacota os pontos: olho esq., olho dir., nariz, boca esq., boca dir.
         le, re, n, lm, rm = landmarks_array

@@ -6,9 +6,12 @@ Implementa a interface ILandmarksModel usando Ultralytics YOLO.
 
 from typing import Optional, Tuple, List
 import numpy as np
+import logging
 from ultralytics import YOLO
 
 from src.domain.services.landmarks_model_interface import ILandmarksModel
+
+logger = logging.getLogger(__name__)
 
 
 class LandmarksYOLOModelAdapter(ILandmarksModel):
@@ -177,7 +180,11 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
                     batch_landmarks.append(None)
                     continue
                 
-                landmarks = result.keypoints[0].xy.cpu().numpy()  # Shape: (N, 2)
+                # IMPORTANTE: Remove dimensão extra do batch
+                # Shape original: (1, N, 2) -> Shape final: (N, 2)
+                landmarks = result.keypoints[0].xy.cpu().numpy()
+                if landmarks.ndim == 3:  # Se tem 3 dimensões (batch, keypoints, coords)
+                    landmarks = landmarks[0]  # Remove dimensão do batch
                 
                 if landmarks.shape[0] == 0:
                     batch_landmarks.append(None)
@@ -188,7 +195,5 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
             return batch_landmarks
             
         except Exception as e:
-            if verbose:
-                print(f"Erro na inferência em lote de landmarks: {e}")
-            # Retorna None para todos os crops em caso de erro
+            logger.error(f"Erro em predict_batch: {e}", exc_info=True)
             return [None] * len(face_crops)
