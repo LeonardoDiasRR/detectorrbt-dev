@@ -53,6 +53,8 @@ class ProcessFaceDetectionUseCase:
         show_video: bool = False,
         conf_threshold: float = 0.5,
         iou_threshold: float = 0.5,
+        landmark_conf_threshold: float = 0.1,
+        landmark_iou_threshold: float = 0.75,
         max_frames_lost: int = 30,
         verbose_log: bool = False,
         save_images: bool = False,
@@ -86,6 +88,8 @@ class ProcessFaceDetectionUseCase:
         :param show_video: Se deve exibir vídeo (debug).
         :param conf_threshold: Threshold de confiança mínima.
         :param iou_threshold: Threshold de IoU para NMS.
+        :param landmark_conf_threshold: Threshold de confiança para detecção de landmarks.
+        :param landmark_iou_threshold: Threshold de IoU para NMS de landmarks.
         :param max_frames_lost: Máximo de frames perdidos antes de finalizar track.
         :param verbose_log: Se deve fazer log detalhado.
         :param save_images: Se deve salvar imagens.
@@ -118,6 +122,8 @@ class ProcessFaceDetectionUseCase:
         self.tracker_config = tracker_config
         self.conf_threshold = conf_threshold
         self.iou_threshold = iou_threshold
+        self.landmark_conf_threshold = landmark_conf_threshold
+        self.landmark_iou_threshold = landmark_iou_threshold
         self.max_frames_lost = max_frames_lost
         self.verbose_log = verbose_log
         self.save_images = save_images
@@ -210,6 +216,7 @@ class ProcessFaceDetectionUseCase:
             source=self.camera.source.value(),
             conf_threshold=self.conf_threshold,
             iou_threshold=self.iou_threshold,
+            tracker=self.tracker_config,
             inference_size=self.inference_size,
             show=self.show_video
         ):
@@ -333,7 +340,7 @@ class ProcessFaceDetectionUseCase:
             try:
                 batch_landmarks = self.landmarks_detector.predict_batch(
                     face_crops=face_crops,
-                    conf=self.conf_threshold,
+                    conf=self.landmark_conf_threshold,
                     verbose=False
                 )
                 

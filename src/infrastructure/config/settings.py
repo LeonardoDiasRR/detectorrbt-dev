@@ -18,19 +18,27 @@ class CameraConfig:
 
 @dataclass
 class YOLOConfig:
-    """Configuração do modelo YOLO."""
+    """Configuração do modelo YOLO para detecção de faces."""
     model_path: str = "yolov8n-face.pt"
-    landmarks_model_path: str = "yolov8n-face.pt"
-    conf: float = 0.1
-    iou: float = 0.07
+    confidence_threshold: float = 0.1
+    iou_threshold: float = 0.07
+    tracker: str = "bytetrack.yaml"
+
+
+@dataclass
+class LandmarkConfig:
+    """Configuração do modelo YOLO para detecção de landmarks."""
+    model_path: str = "yolov8n-face.pt"
+    confidence_threshold: float = 0.1
+    iou_threshold: float = 0.75
 
 
 @dataclass
 class ByteTrackConfig:
     """Configuração do ByteTrack."""
     tracker_config: str = "bytetrack.yaml"
-    max_frames_lost: int = 30
-    max_frames_per_track: int = 900
+    max_age: int = 30
+    max_frames: int = 900
 
 
 @dataclass
@@ -40,20 +48,32 @@ class FindFaceConfig:
     user: str
     password: str
     uuid: str
-    camera_prefix: str = "EXTERNO"
+    group_prefix: str = "EXTERNO"
 
 
 @dataclass
 class ProcessingConfig:
     """Configuração de processamento."""
     gpu_devices: List[int] = None
+    cpu_batch_size: int = 1
+    gpu_batch_size: int = 32
     
     def __post_init__(self):
         """Inicializa valores padrão após criação."""
         if self.gpu_devices is None:
             self.gpu_devices = [0]
-    show_video: bool = True
-    verbose_log: bool = False
+
+
+@dataclass
+class DisplayConfig:
+    """Configuração de exibição na tela."""
+    exibir_na_tela: bool = True
+
+
+@dataclass
+class LoggingConfig:
+    """Configuração de logging."""
+    verbose: bool = False
 
 
 @dataclass
@@ -65,17 +85,29 @@ class StorageConfig:
 
 
 @dataclass
-class MovementConfig:
-    """Configuração de detecção de movimento."""
-    min_movement_threshold_pixels: float = 50.0
-    min_movement_frame_percentage: float = 0.1
+class CompressionConfig:
+    """Configuração de compressão de imagens."""
+    jpeg_quality: int = 95
 
 
 @dataclass
-class DetectionFilterConfig:
+class TrackConfig:
+    """Configuração de detecção de movimento no track."""
+    min_movement_pixels: float = 50.0
+    min_movement_percentage: float = 0.1
+
+
+@dataclass
+class FilterConfig:
     """Configuração de filtros de detecção (aplicados antes de criar evento)."""
     min_confidence: float = 0.45
     min_bbox_width: int = 60
+
+
+@dataclass
+class QueuesConfig:
+    """Configuração de filas assíncronas."""
+    findface_queue_max_size: int = 200
 
 
 @dataclass
@@ -92,10 +124,6 @@ class PerformanceConfig:
     """Configuração de otimizações de performance."""
     inference_size: int = 640
     detection_skip_frames: int = 1
-    findface_queue_size: int = 200  # Tamanho da fila assíncrona FindFace
-    jpeg_compression: int = 95  # Qualidade JPEG para envio ao FindFace (0-100)
-    gpu_batch_size: int = 32  # Batch size para landmarks em GPU
-    cpu_batch_size: int = 1  # Batch size para landmarks em CPU
 
 
 @dataclass
@@ -122,11 +150,16 @@ class AppSettings:
     """
     findface: FindFaceConfig
     yolo: YOLOConfig
+    landmark: LandmarkConfig
     bytetrack: ByteTrackConfig
     processing: ProcessingConfig
+    display: DisplayConfig
+    logging: LoggingConfig
     storage: StorageConfig
-    movement: MovementConfig
-    detection_filter: DetectionFilterConfig
+    compression: CompressionConfig
+    track: TrackConfig
+    filter: FilterConfig
+    queues: QueuesConfig
     face_quality: FaceQualityConfig
     performance: PerformanceConfig
     tensorrt: TensorRTConfig

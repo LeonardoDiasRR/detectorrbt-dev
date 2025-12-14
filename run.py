@@ -264,7 +264,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     processors = []
     
     # Obtém câmeras ativas usando DDD (Repository + Use Case)
-    camera_repository = CameraRepositoryFindface(ff, camera_prefix=settings.findface.camera_prefix)
+    camera_repository = CameraRepositoryFindface(ff, camera_prefix=settings.findface.group_prefix)
     load_cameras_use_case = LoadCamerasUseCase(camera_repository, settings)
     cameras_ff = load_cameras_use_case.execute()
     
@@ -293,7 +293,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     landmarks_detector = None
     try:
         logger.info(f"Iniciando carregamento do detector de landmarks...")
-        logger.info(f"Modelo de landmarks: {settings.yolo.landmarks_model_path}")
+        logger.info(f"Modelo de landmarks: {settings.landmark.model_path}")
         logger.info(f"Device para landmarks: {landmarks_device}")
         
         from src.infrastructure.ml.yolo_landmarks_detector import YOLOLandmarksDetector
@@ -304,7 +304,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         # Cria o modelo de landmarks usando a factory
         logger.info(f"Criando modelo de landmarks via factory...")
         landmarks_model = LandmarksModelFactory.create(
-            model_path=settings.yolo.landmarks_model_path,
+            model_path=settings.landmark.model_path,
             device=landmarks_device
         )
         logger.info(f"Modelo de landmarks criado com sucesso")
@@ -312,7 +312,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         # Cria o detector usando o modelo criado
         logger.info(f"Criando detector de landmarks...")
         landmarks_detector = YOLOLandmarksDetector(model=landmarks_model)
-        logger.info(f"✓ Detector de landmarks carregado (SÍNCRONO): {settings.yolo.landmarks_model_path}")
+        logger.info(f"✓ Detector de landmarks carregado (SÍNCRONO): {settings.landmark.model_path}")
         logger.info(f"✓ Device usado: {landmarks_device}")
         logger.info(f"✓ landmarks_detector type: {type(landmarks_detector)}")
         logger.info(f"✓ landmarks_detector is None: {landmarks_detector is None}")
@@ -333,7 +333,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     processors = []
     
     # Obtém câmeras ativas usando DDD (Repository + Use Case)
-    camera_repository = CameraRepositoryFindface(ff, camera_prefix=settings.findface.camera_prefix)
+    camera_repository = CameraRepositoryFindface(ff, camera_prefix=settings.findface.group_prefix)
     load_cameras_use_case = LoadCamerasUseCase(camera_repository, settings)
     cameras_ff = load_cameras_use_case.execute()
     
@@ -341,10 +341,10 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     
     # Cria serviços de domínio compartilhados
     track_validation_service = TrackValidationService(
-        min_movement_threshold=settings.movement.min_movement_threshold_pixels,
-        min_movement_percentage=settings.movement.min_movement_frame_percentage,
-        min_confidence_threshold=settings.detection_filter.min_confidence,
-        min_bbox_width=settings.detection_filter.min_bbox_width
+        min_movement_threshold=settings.track.min_movement_pixels,
+        min_movement_percentage=settings.track.min_movement_percentage,
+        min_confidence_threshold=settings.filter.min_confidence,
+        min_bbox_width=settings.filter.min_bbox_width
     )
     
     # EventCreationService com pesos configurados
@@ -356,13 +356,13 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     )
     
     movement_detection_service = MovementDetectionService(
-        min_movement_threshold=settings.movement.min_movement_threshold_pixels
+        min_movement_threshold=settings.track.min_movement_pixels
     )
     track_lifecycle_service = TrackLifecycleService(
-        max_frames_per_track=settings.bytetrack.max_frames_per_track
+        max_frames_per_track=settings.bytetrack.max_frames
     )
     
-    face_quality_service = FaceQualityService() if settings.yolo.landmarks_model_path else None
+    face_quality_service = FaceQualityService() if settings.landmark.model_path else None
     
     # ============================================================================
     # FASE 1: CARREGAMENTO SEQUENCIAL DE MODELOS (evita race condition TensorRT)
@@ -460,23 +460,25 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
                 gpu_id=gpu_id,
                 image_save_service=image_save_service,
                 face_quality_service=face_quality_service,
-                tracker_config=settings.bytetrack.tracker_config,
-                show_video=settings.processing.show_video,
-                conf_threshold=settings.yolo.conf,
-                iou_threshold=settings.yolo.iou,
-                max_frames_lost=settings.bytetrack.max_frames_lost,
-                verbose_log=settings.processing.verbose_log,
+                tracker_config=settings.yolo.tracker,
+                show_video=settings.display.exibir_na_tela,
+                conf_threshold=settings.yolo.confidence_threshold,
+                iou_threshold=settings.yolo.iou_threshold,
+                landmark_conf_threshold=settings.landmark.confidence_threshold,
+                landmark_iou_threshold=settings.landmark.iou_threshold,
+                max_frames_lost=settings.bytetrack.max_age,
+                verbose_log=settings.logging.verbose,
                 save_images=settings.storage.save_images,
                 project_dir=settings.storage.project_dir,
                 results_dir=settings.storage.results_dir,
-                min_movement_threshold=settings.movement.min_movement_threshold_pixels,
-                min_movement_percentage=settings.movement.min_movement_frame_percentage,
-                min_confidence_threshold=settings.detection_filter.min_confidence,
-                min_bbox_width=settings.detection_filter.min_bbox_width,
-                max_frames_per_track=settings.bytetrack.max_frames_per_track,
+                min_movement_threshold=settings.track.min_movement_pixels,
+                min_movement_percentage=settings.track.min_movement_percentage,
+                min_confidence_threshold=settings.filter.min_confidence,
+                min_bbox_width=settings.filter.min_bbox_width,
+                max_frames_per_track=settings.bytetrack.max_frames,
                 inference_size=settings.performance.inference_size,
                 detection_skip_frames=settings.performance.detection_skip_frames,
-                jpeg_quality=settings.performance.jpeg_compression
+                jpeg_quality=settings.compression.jpeg_quality
             )
             processors.append(processor)
             logger.info(f"[{i}/{len(models_info)}] ✓ Processor criado com sucesso")
@@ -575,8 +577,8 @@ if __name__ == "__main__":
         # Cria adapter do FindFace com qualidade JPEG configurável
         findface_adapter = FindfaceAdapter(
             ff, 
-            camera_prefix=settings.findface.camera_prefix,
-            jpeg_quality=settings.performance.jpeg_compression
+            camera_prefix=settings.findface.group_prefix,
+            jpeg_quality=settings.compression.jpeg_quality
         )
         
         # Executa aplicação

@@ -40,11 +40,11 @@ def main():
         # Cria repositório de câmeras
         camera_repository = CameraRepositoryFindface(
             findface_client=findface_client,
-            camera_prefix=settings.findface.camera_prefix
+            camera_prefix=settings.findface.group_prefix
         )
         
         # Obtém câmeras ativas
-        logger.info(f"Buscando câmeras ativas com prefixo '{settings.findface.camera_prefix}'...")
+        logger.info(f"Buscando câmeras ativas com prefixo '{settings.findface.group_prefix}'...")
         cameras = camera_repository.get_active_cameras()
         
         # Exibe resultado

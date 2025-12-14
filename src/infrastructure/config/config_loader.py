@@ -14,13 +14,18 @@ from .settings import (
     AppSettings,
     FindFaceConfig,
     YOLOConfig,
+    LandmarkConfig,
     ByteTrackConfig,
     ProcessingConfig,
+    DisplayConfig,
+    LoggingConfig,
     StorageConfig,
+    CompressionConfig,
+    TrackConfig,
+    FilterConfig,
+    QueuesConfig,
     CameraConfig,
-    DetectionFilterConfig,
     FaceQualityConfig,
-    MovementConfig,
     TensorRTConfig,
     OpenVINOConfig,
     PerformanceConfig
@@ -83,24 +88,30 @@ class ConfigLoader:
         findface_config = cls.load_from_env()
         
         # Adiciona prefixo de câmera do YAML ao FindFace
-        findface_config.camera_prefix = yaml_config.get("prefixo_grupo_camera_findface", "EXTERNO")
+        findface_config.group_prefix = yaml_config.get("findface", {}).get("group_prefix", "EXTERNO")
         
-        # Monta configurações
+        # Monta configurações de modelos
         yolo_config = YOLOConfig(
-            model_path=yaml_config.get("face_detection_model", "yolov8n-face.pt"),
-            landmarks_model_path=yaml_config.get("landmarks_detection_model", "yolov8n-face.pt"),
-            conf=yaml_config.get("deteccao", {}).get("conf", 0.1),
-            iou=yaml_config.get("deteccao", {}).get("iou", 0.07)
+            model_path=yaml_config.get("modelo_deteccao", {}).get("model_path", "yolov8n-face.pt"),
+            confidence_threshold=yaml_config.get("modelo_deteccao", {}).get("confidence_threshold", 0.1),
+            iou_threshold=yaml_config.get("modelo_deteccao", {}).get("iou_threshold", 0.07),
+            tracker=yaml_config.get("modelo_deteccao", {}).get("tracker", "bytetrack.yaml")
+        )
+        
+        landmark_config = LandmarkConfig(
+            model_path=yaml_config.get("modelo_landmark", {}).get("model_path", "yolov8n-face.pt"),
+            confidence_threshold=yaml_config.get("modelo_landmark", {}).get("confidence_threshold", 0.1),
+            iou_threshold=yaml_config.get("modelo_landmark", {}).get("iou_threshold", 0.75)
         )
         
         bytetrack_config = ByteTrackConfig(
-            tracker_config=yaml_config.get("tracker", "bytetrack.yaml"),
-            max_frames_lost=yaml_config.get("max_frames_lost", 30),
-            max_frames_per_track=yaml_config.get("max_frames_por_track", 900)
+            tracker_config=yaml_config.get("tracking", {}).get("tracker_config", "bytetrack.yaml"),
+            max_age=yaml_config.get("tracking", {}).get("max_age", 30),
+            max_frames=yaml_config.get("tracking", {}).get("max_frames", 900)
         )
         
         # Carrega gpu_devices do YAML (pode ser lista ou int único)
-        gpu_devices_value = yaml_config.get("gpu_devices", yaml_config.get("gpu_index", 0))
+        gpu_devices_value = yaml_config.get("processing", {}).get("gpu_devices", [0])
         if isinstance(gpu_devices_value, int):
             gpu_devices = [gpu_devices_value]
         elif isinstance(gpu_devices_value, list):
@@ -110,24 +121,40 @@ class ConfigLoader:
         
         processing_config = ProcessingConfig(
             gpu_devices=gpu_devices,
-            show_video=yaml_config.get("show", True),
-            verbose_log=yaml_config.get("verbose_log", False)
+            cpu_batch_size=yaml_config.get("processing", {}).get("cpu_batch_size", 1),
+            gpu_batch_size=yaml_config.get("processing", {}).get("gpu_batch_size", 32)
+        )
+        
+        display_config = DisplayConfig(
+            exibir_na_tela=yaml_config.get("display", {}).get("exibir_na_tela", True)
+        )
+        
+        logging_config = LoggingConfig(
+            verbose=yaml_config.get("logging", {}).get("verbose", False)
         )
         
         storage_config = StorageConfig(
-            save_images=yaml_config.get("salvamento_imagens", {}).get("habilitado", True),
-            project_dir=yaml_config.get("salvamento_imagens", {}).get("project", yaml_config.get("project", "./imagens/")),
-            results_dir=yaml_config.get("salvamento_imagens", {}).get("name", yaml_config.get("name", "rtsp_byte_track_results"))
+            save_images=yaml_config.get("storage", {}).get("save_images", True),
+            project_dir=yaml_config.get("storage", {}).get("project_dir", "./imagens/"),
+            results_dir=yaml_config.get("storage", {}).get("results_dir", "rtsp_byte_track_results")
         )
         
-        movement_config = MovementConfig(
-            min_movement_threshold_pixels=yaml_config.get("movimento", {}).get("limiar_minimo_pixels", 5.0),
-            min_movement_frame_percentage=yaml_config.get("movimento", {}).get("percentual_minimo_frames", 0.1)
+        compression_config = CompressionConfig(
+            jpeg_quality=yaml_config.get("compression", {}).get("jpeg_quality", 95)
         )
         
-        detection_filter_config = DetectionFilterConfig(
-            min_confidence=yaml_config.get("filtro_deteccao", {}).get("confianca_minima", 0.45),
-            min_bbox_width=yaml_config.get("filtro_deteccao", {}).get("largura_minima_bbox", 60)
+        track_config = TrackConfig(
+            min_movement_pixels=yaml_config.get("track", {}).get("min_movement_pixels", 50.0),
+            min_movement_percentage=yaml_config.get("track", {}).get("min_movement_percentage", 0.1)
+        )
+        
+        filter_config = FilterConfig(
+            min_confidence=yaml_config.get("filter", {}).get("min_confidence", 0.45),
+            min_bbox_width=yaml_config.get("filter", {}).get("min_bbox_width", 60)
+        )
+        
+        queues_config = QueuesConfig(
+            findface_queue_max_size=yaml_config.get("queues", {}).get("findface_queue_max_size", 200)
         )
         
         # Configuração de Qualidade Facial
@@ -155,11 +182,7 @@ class ConfigLoader:
         # Configuração de Performance
         performance_config = PerformanceConfig(
             inference_size=yaml_config.get("performance", {}).get("inference_size", 640),
-            detection_skip_frames=yaml_config.get("performance", {}).get("detection_skip_frames", 1),
-            findface_queue_size=yaml_config.get("performance", {}).get("findface_queue_size", 200),
-            jpeg_compression=yaml_config.get("performance", {}).get("jpeg_compression", 95),
-            gpu_batch_size=yaml_config.get("performance", {}).get("gpu_batch_size", 32),
-            cpu_batch_size=yaml_config.get("performance", {}).get("cpu_batch_size", 1)
+            detection_skip_frames=yaml_config.get("performance", {}).get("detection_skip_frames", 1)
         )
         
         # Carrega câmeras do YAML
@@ -176,11 +199,16 @@ class ConfigLoader:
         return AppSettings(
             findface=findface_config,
             yolo=yolo_config,
+            landmark=landmark_config,
             bytetrack=bytetrack_config,
             processing=processing_config,
+            display=display_config,
+            logging=logging_config,
             storage=storage_config,
-            movement=movement_config,
-            detection_filter=detection_filter_config,
+            compression=compression_config,
+            track=track_config,
+            filter=filter_config,
+            queues=queues_config,
             face_quality=face_quality_config,
             tensorrt=tensorrt_config,
             openvino=openvino_config,

@@ -1,0 +1,72 @@
+# ==========================================================
+# ByteTrack configuration (Ultralytics compatible)
+# ==========================================================
+
+# ----------------------------------------------------------
+# Tipo do tracker
+# ----------------------------------------------------------
+tracker_type: bytetrack   # bytetrack | botsort
+
+# ----------------------------------------------------------
+# Thresholds de detecção e tracking
+# ----------------------------------------------------------
+
+# Detecções com score >= track_high_thresh
+# são consideradas confiáveis para associação
+track_high_thresh: 0.3  # Recomendado: 0.4 – 0.5
+
+# Detecções com score entre
+# track_low_thresh e track_high_thresh
+# são usadas apenas se ajudarem a manter o track
+track_low_thresh: 0.1  # Recomendado: 0.1 – 0.2
+
+# Score mínimo para iniciar um novo track
+new_track_thresh: 0.3 # Recomendado: 0.3 – 0.5
+
+# ----------------------------------------------------------
+# Buffer e tempo de vida do track
+# ----------------------------------------------------------
+
+# Quantidade de frames que um track pode
+# ficar "perdido" antes de ser removido
+track_buffer: 60 # Recomendado: 30 – 90
+
+# Frame rate esperado do vídeo
+# (importante para RTSP)
+frame_rate: 30 # Recomendado: 25 – 30
+
+# ----------------------------------------------------------
+# Associação (matching)
+# ----------------------------------------------------------
+
+# Threshold de IoU para matching entre
+# tracks existentes e novas detecções
+match_thresh: 0.07  # Recomendado: 0.6 – 0.7
+
+# Funde score de detecção com a distância
+# (IoU / motion) durante o matching
+# OBRIGATÓRIO nas versões recentes do Ultralytics
+fuse_score: true
+
+# ----------------------------------------------------------
+# Aspect ratio (filtro geométrico)
+# ----------------------------------------------------------
+
+# Razão máxima entre largura/altura
+# (evita caixas muito alongadas)
+aspect_ratio_thresh: 3.0 # Recomendado: 1.6 – 3.0
+
+# Área mínima da bounding box
+# (em pixels) para evitar ruído
+min_box_area: 20
+
+# ----------------------------------------------------------
+# Configurações avançadas (normalmente não mexer)
+# ----------------------------------------------------------
+
+# Se true, remove tracks duplicados
+# (usando IoU alto)
+remove_duplicate_tracks: false  # Recomendado: true
+
+# IoU para considerar tracks duplicados
+duplicate_iou_thresh: 0.15

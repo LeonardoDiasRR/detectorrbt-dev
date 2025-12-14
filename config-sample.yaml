@@ -1,100 +1,106 @@
 # config.yaml
-# Lista de GPUs a serem utilizadas (distribuição round-robin entre câmeras)
-# Exemplos: [0] para usar apenas GPU 0, [0, 1] para usar GPU 0 e 1, [0, 1, 2, 3] para 4 GPUs
-gpu_devices: [0]
+# Configurações de processamento
+processing:
+  # Tamanho do batch para inferência de landmarks em CPU (padrão: 1)
+  cpu_batch_size: 1
+  # Tamanho do batch para inferência de landmarks em GPU (padrão: 32)
+  gpu_batch_size: 32
+  # Lista de GPUs a serem utilizadas (distribuição round-robin entre câmeras)
+  gpu_devices: [0]
 
-# Limite de frames sem detecção para considerar o objeto perdido
-max_frames_lost: 60
+# Otimizações de performance
+performance:
+  # Processa detecções a cada N frames (1 = todos os frames)
+  detection_skip_frames: 2
+  # Resolução de inferência (640, 1280). Menor = mais rápido
+  inference_size: 1280
 
-# Limite máximo de frames por track
-max_frames_por_track: 900
-
-# Modelo de detecção facial
-face_detection_model: "yolo-models/yolov12n-face.pt"
-
-# Modelo de detecção de landmarks faciais (keypoints)
-# Usado para cálculo de frontalidade e pose da face
-# Deve ser um modelo YOLO que retorne keypoints (ex: yolov8n-face.pt)
-landmarks_detection_model: "yolo-models/yolov8n-face.pt"
-
-# Modelo de rastreamento
-# Opções:
-## bytetrack.yaml <- mais rápido
-## deep_sort.yaml <- mais preciso
-tracker: "bytetrack.yaml"  
-
-# Parâmetros de detecção YOLO
-deteccao:
+# Configuração do modelo de detecção de faces
+modelo_deteccao:
+  # Caminho do modelo YOLO para detecção facial
+  model_path: "yolo-models/yolov12n-face.pt"
   # Confiança mínima para considerar uma detecção válida
-  conf: 0.1  # Valor padrão: 0.1 igual o do algoritmo ByteTrack
+  confidence_threshold: 0.1
   # IOU threshold para NMS (Non-Maximum Suppression)
-  iou: 0.07  # Quanto maior, mais restritivo
+  iou_threshold: 0.70
+  # Modelo de rastreamento (bytetrack.yaml ou deep_sort.yaml)
+  tracker: "bytetrack.yaml"
 
-# Exibir na tela
-show: false
+# Configuração do modelo de landmarks faciais
+modelo_landmark:
+  # Caminho do modelo YOLO para detecção de landmarks (keypoints)
+  model_path: "yolo-models/yolov8n-face.pt"
+  # Confiança mínima para considerar uma detecção válida
+  confidence_threshold: 0.2
+  # IOU threshold para NMS (Non-Maximum Suppression)
+  iou_threshold: 0.70
+
+# Configurações de rastreamento (tracking)
+tracking:
+  # Modelo de rastreamento (bytetrack.yaml ou deep_sort.yaml)
+  tracker_config: "bytetrack.yaml"
+  # Limite de frames sem detecção para considerar o objeto perdido
+  max_age: 60
+  # Limite máximo de frames por track
+  max_frames: 900
+
+# Filtros de detecção (aplicados antes de criar evento)
+filter:
+  # Largura mínima do bbox da detecção (em pixels)
+  min_bbox_width: 50
+  # Confiança mínima da detecção para criar evento
+  min_confidence: 0.50
+
+# Detecção de movimento no track
+track:
+  # Percentual mínimo de frames com movimento (0.0 a 1.0)
+  min_movement_percentage: 0.1
+  # Limiar mínimo de variação em pixels para considerar movimento
+  min_movement_pixels: 0.7
+
+# Configurações de filas assíncronas
+queues:
+  # Tamanho da fila assíncrona para envios FindFace
+  findface_queue_max_size: 500
 
 # Pesos na escolha da melhor face do track
-# Utiliza múltiplos critérios ponderados para cálculo de qualidade
 qualidade_face:
   confianca_deteccao: 3
   tamanho_bbox: 1
   face_frontal: 6
 
-# Modo verboso de log
-verbose_log: false
+# Configurações de logging
+logging:
+  # Modo verboso de log
+  verbose: true
+
+# Configurações de exibição na tela
+display:
+  # Exibir processamento na tela
+  exibir_na_tela: true
 
 # Configurações de salvamento de imagens
-salvamento_imagens:
+storage:
   # Ativa/desativa o salvamento de imagens no disco
-  habilitado: false
+  save_images: true
   # Diretório de saída para as imagens
-  project: "./imagens/"
-  name: "rtsp_byte_track_results"
+  project_dir: "./imagens/"
+  # Nome do subdiretório de resultados
+  results_dir: "rtsp_byte_track_results"
 
-# Detecção de movimento no track
-movimento:
-  # Limiar mínimo de variação em pixels para considerar movimento
-  # Calcula-se a distância euclidiana entre centros dos bboxes consecutivos
-  limiar_minimo_pixels: 1  # 1 pixel
-  # Percentual mínimo de frames com movimento (0.0 a 1.0)
-  # Se menos que esse percentual tiver movimento, considera sem movimento
-  percentual_minimo_frames: 0.1  # 10% dos frames
-
-# Filtros de detecção (aplicados antes de criar evento)
-filtro_deteccao:
-  # Confiança mínima da detecção para criar evento
-  # Detecções abaixo deste valor são descartadas
-  confianca_minima: 0.43
-  # Largura mínima do bbox da detecção (em pixels)
-  # Detecções com bbox menor que este valor são descartadas
-  largura_minima_bbox: 40
-
-# Prefixo dos grupos de câmeras no FindFace
-prefixo_grupo_camera_findface: "TESTE"
-
-# Otimizações de performance para cenas com muitas faces
-performance:
-  # Resolução de inferência (640, 1280). Menor = mais rápido
-  inference_size: 1280
-  # Processa detecções a cada N frames (1 = todos os frames)
-  detection_skip_frames: 2
-  # Tamanho da fila assíncrona para envios FindFace (200 = padrão, 0 = desabilita fila)
-  findface_queue_size: 500
+# Configurações de compressão de imagens
+compression:
   # Qualidade de compressão JPEG para envio ao FindFace (0-100)
-  # 95 = qualidade máxima (~18ms encoding), 75 = boa qualidade (~12ms, 1.5x mais rápido)
-  # Reduzir para 60-75 melhora performance em cenas com muitas faces
-  jpeg_compression: 95
-  # Tamanho do batch para inferência de landmarks em GPU (padrão: 32)
-  # Maior batch = melhor throughput GPU, mas mais latência
-  gpu_batch_size: 32
-  # Tamanho do batch para inferência de landmarks em CPU (padrão: 1)
-  # CPU não se beneficia de batch processing como GPU
-  cpu_batch_size: 1
+  jpeg_quality: 95
+
+# Configurações do FindFace
+findface:
+  # Prefixo dos grupos de câmeras no FindFace
+  group_prefix: "TESTE"
 
 # Configurações TensorRT (melhor performance em GPUs NVIDIA)
 tensorrt:
   # Habilita o uso de TensorRT se disponível (requer CUDA)
-  # TensorRT tem precedência sobre OpenVINO quando GPU CUDA está disponível
   enabled: false
   # Precisão: FP16 (recomendado), FP32, INT8
   precision: "FP16"
