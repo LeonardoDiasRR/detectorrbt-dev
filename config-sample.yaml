@@ -22,7 +22,7 @@ modelo_deteccao:
   # Confiança mínima para considerar uma detecção válida
   confidence_threshold: 0.1
   # IOU threshold para NMS (Non-Maximum Suppression)
-  iou_threshold: 0.70
+  iou_threshold: 0.55
   # Modelo de rastreamento (bytetrack.yaml ou deep_sort.yaml)
   tracker: "bytetrack.yaml"
 
@@ -31,9 +31,9 @@ modelo_landmark:
   # Caminho do modelo YOLO para detecção de landmarks (keypoints)
   model_path: "yolo-models/yolov8n-face.pt"
   # Confiança mínima para considerar uma detecção válida
-  confidence_threshold: 0.2
+  confidence_threshold: 0.1
   # IOU threshold para NMS (Non-Maximum Suppression)
-  iou_threshold: 0.70
+  iou_threshold: 0.55
 
 # Configurações de rastreamento (tracking)
 tracking:
@@ -42,7 +42,7 @@ tracking:
   # Limite de frames sem detecção para considerar o objeto perdido
   max_age: 60
   # Limite máximo de frames por track
-  max_frames: 900
+  max_frames: 600
 
 # Filtros de detecção (aplicados antes de criar evento)
 filter:
