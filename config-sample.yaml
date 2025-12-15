@@ -25,6 +25,8 @@ modelo_deteccao:
   iou_threshold: 0.55
   # Modelo de rastreamento (bytetrack.yaml ou deep_sort.yaml)
   tracker: "bytetrack.yaml"
+  # Persistir tracks entre streams (false = reseta IDs a cada reinício)
+  persist: false
 
 # Configuração do modelo de landmarks faciais
 modelo_landmark:
@@ -54,9 +56,9 @@ filter:
 # Detecção de movimento no track
 track:
   # Percentual mínimo de frames com movimento (0.0 a 1.0)
-  min_movement_percentage: 0.1
+  min_movement_percentage: 0.05  # 5%
   # Limiar mínimo de variação em pixels para considerar movimento
-  min_movement_pixels: 0.7
+  min_movement_pixels: 5.0
 
 # Configurações de filas assíncronas
 queues:

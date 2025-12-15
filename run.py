@@ -359,7 +359,8 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         min_movement_threshold=settings.track.min_movement_pixels
     )
     track_lifecycle_service = TrackLifecycleService(
-        max_frames_per_track=settings.bytetrack.max_frames
+        max_frames_per_track=settings.bytetrack.max_frames,
+        min_movement_threshold=settings.track.min_movement_pixels
     )
     
     face_quality_service = FaceQualityService() if settings.landmark.model_path else None
@@ -414,7 +415,10 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
             )
             
             # Cria wrapper YOLOFaceDetector para interface de domínio
-            face_detector = YOLOFaceDetector(detection_model)
+            face_detector = YOLOFaceDetector(
+                model=detection_model,
+                persist=settings.yolo.persist
+            )
             
             # Armazena informações para criação posterior dos processors
             models_info.append((camera, gpu_id, detection_model, face_detector))

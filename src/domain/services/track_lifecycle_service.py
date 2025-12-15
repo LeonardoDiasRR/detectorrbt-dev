@@ -15,13 +15,15 @@ class TrackLifecycleService:
     Gerencia adição de eventos, finalização, seleção de melhor evento.
     """
 
-    def __init__(self, max_frames_per_track: int):
+    def __init__(self, max_frames_per_track: int, min_movement_threshold: float = 50.0):
         """
         Inicializa o serviço de ciclo de vida de tracks.
         
         :param max_frames_per_track: Máximo de frames/eventos por track.
+        :param min_movement_threshold: Distância mínima em pixels para considerar movimento.
         """
         self.max_frames_per_track = max_frames_per_track
+        self.min_movement_threshold = min_movement_threshold
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def add_event_to_track(self, track: Track, event: Event) -> bool:
@@ -38,18 +40,31 @@ class TrackLifecycleService:
             )
             return False
         
-        track.add_event(event)
+        track.add_event(event, min_threshold_pixels=self.min_movement_threshold)
         return True
 
     def should_finalize_track(self, track: Track, frames_lost: int, max_frames_lost: int) -> bool:
         """
         Decide se um track deve ser finalizado.
         
+        Um track deve ser finalizado quando:
+        1. Atingiu o limite máximo de eventos/frames (max_frames_per_track)
+        2. Foi perdido por muitos frames consecutivos (frames_lost >= max_frames_lost)
+        
         :param track: Track a verificar.
         :param frames_lost: Número de frames perdidos (track não detectado).
         :param max_frames_lost: Máximo de frames perdidos antes de finalizar.
         :return: True se deve finalizar, False caso contrário.
         """
+        # Finaliza se atingiu o limite de eventos
+        if track.event_count >= self.max_frames_per_track:
+            self.logger.debug(
+                f"Track {track.id.value()} será finalizado: atingiu limite de "
+                f"{self.max_frames_per_track} eventos"
+            )
+            return True
+        
+        # Finaliza se foi perdido por muitos frames
         return frames_lost >= max_frames_lost
 
     def get_best_event(self, track: Track) -> Optional[Event]:

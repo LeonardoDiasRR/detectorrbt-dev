@@ -13,16 +13,18 @@ class YOLOFaceDetector(IFaceDetector):
     Wrapper para o modelo YOLO que segue a interface do domínio.
     """
 
-    def __init__(self, model: IDetectionModel):
+    def __init__(self, model: IDetectionModel, persist: bool = False):
         """
         Inicializa o detector YOLO.
         
         :param model: Instância do modelo YOLO (IDetectionModel).
+        :param persist: Se True, mantém IDs de tracks entre reinícios.
         """
         if not isinstance(model, IDetectionModel):
             raise TypeError("model deve implementar IDetectionModel")
         
         self.model = model
+        self.persist = persist
 
     def detect_and_track(
         self,
@@ -53,7 +55,7 @@ class YOLOFaceDetector(IFaceDetector):
         for result in self.model.track(
             source=source,
             tracker=tracker,
-            persist=True,
+            persist=self.persist,
             conf=conf_threshold,
             iou=iou_threshold,
             verbose=False,

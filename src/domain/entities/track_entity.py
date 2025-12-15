@@ -40,7 +40,7 @@ class Track:
         self._best_event: Optional[Event] = first_event
         self._last_event: Optional[Event] = first_event
         self._event_count: int = 1 if first_event is not None else 0
-        self._movement_count: int = 1 if first_event is not None else 0
+        self._movement_count: int = 0  # Primeiro evento NÃO conta como movimento (não há referência anterior)
         self._min_movement_percentage: float = min_movement_percentage
 
     @property
@@ -71,9 +71,9 @@ class Track:
     @property
     def has_movement(self) -> bool:
         """Indica se houve movimento significativo no track."""
-        # Track com 1 evento sempre tem movimento
-        if self._event_count <= 1:
-            return True
+        # Track com 0 eventos não tem movimento
+        if self._event_count == 0:
+            return False
         
         # Calcula percentual de eventos com movimento
         movement_percentage = self._movement_count / self._event_count
@@ -107,7 +107,7 @@ class Track:
             self._best_event = event
             self._last_event = event
             self._event_count = 1
-            self._movement_count = 1
+            self._movement_count = 0  # Primeiro evento não tem movimento
             return
         
         # Calcula movimento entre último evento e novo evento
@@ -129,6 +129,13 @@ class Track:
             # Incrementa contador se houve movimento
             if distance >= min_threshold_pixels:
                 self._movement_count += 1
+                import logging
+                logger = logging.getLogger(self.__class__.__name__)
+                logger.debug(
+                    f"Track {self._id.value()}: Movimento detectado | "
+                    f"Distância: {distance:.2f}px (threshold: {min_threshold_pixels:.2f}px), "
+                    f"Eventos com movimento: {self._movement_count}/{self._event_count + 1}"
+                )
         
         # Eventos subsequentes
         self._event_count += 1
@@ -221,7 +228,10 @@ class Track:
                 'average_distance': 0.0,
                 'max_distance': 0.0,
                 'min_distance': 0.0,
-                'movement_detected': False
+                'movement_detected': False,
+                'movement_percentage': 0.0,
+                'movement_count': 0,
+                'event_count': 0
             }
         
         if self.event_count < 2:
@@ -230,7 +240,10 @@ class Track:
                 'average_distance': 0.0,
                 'max_distance': 0.0,
                 'min_distance': 0.0,
-                'movement_detected': False
+                'movement_detected': False,
+                'movement_percentage': 0.0,
+                'movement_count': self._movement_count,
+                'event_count': self._event_count
             }
         
         import math
@@ -250,12 +263,18 @@ class Track:
             (center_y_last - center_y_first) ** 2
         )
         
+        # Percentual de frames com movimento
+        movement_percentage = (self._movement_count / self._event_count) * 100.0
+        
         return {
             'total_distance': distance,
             'average_distance': distance,
             'max_distance': distance,
             'min_distance': distance,
-            'movement_detected': distance > 0.0
+            'movement_detected': distance > 0.0,
+            'movement_percentage': movement_percentage,
+            'movement_count': self._movement_count,
+            'event_count': self._event_count
         }
 
     def to_dict(self) -> Dict[str, Any]:

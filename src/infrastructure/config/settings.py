@@ -23,6 +23,7 @@ class YOLOConfig:
     confidence_threshold: float = 0.1
     iou_threshold: float = 0.07
     tracker: str = "bytetrack.yaml"
+    persist: bool = False
 
 
 @dataclass

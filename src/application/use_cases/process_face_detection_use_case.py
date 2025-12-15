@@ -411,6 +411,7 @@ class ProcessFaceDetectionUseCase:
     def _update_lost_tracks(self, detected_track_ids: Optional[set] = None) -> None:
         """
         Atualiza contador de frames perdidos e finaliza tracks inativos.
+        Também finaliza tracks que atingiram o limite máximo de eventos.
         
         :param detected_track_ids: Set de IDs detectados neste frame (ou None).
         """
@@ -420,16 +421,19 @@ class ProcessFaceDetectionUseCase:
         tracks_to_remove = []
         
         for track_id in list(self.active_tracks.keys()):
+            track = self.active_tracks[track_id]
+            
             if track_id not in detected_track_ids:
+                # Track não foi detectado - incrementa contador de frames perdidos
                 self.track_frames_lost[track_id] += 1
-                
-                # Verifica se deve finalizar track
-                if self.track_lifecycle_service.should_finalize_track(
-                    track=self.active_tracks[track_id],
-                    frames_lost=self.track_frames_lost[track_id],
-                    max_frames_lost=self.max_frames_lost
-                ):
-                    tracks_to_remove.append(track_id)
+            
+            # Verifica se deve finalizar track (por frames perdidos OU por limite de eventos)
+            if self.track_lifecycle_service.should_finalize_track(
+                track=track,
+                frames_lost=self.track_frames_lost[track_id],
+                max_frames_lost=self.max_frames_lost
+            ):
+                tracks_to_remove.append(track_id)
         
         # Finaliza tracks
         for track_id in tracks_to_remove:
@@ -451,6 +455,7 @@ class ProcessFaceDetectionUseCase:
         total_events = summary['event_count']
         best_quality = summary['best_quality']
         best_confidence = summary['best_confidence']
+        movement_stats = track.get_movement_statistics()
         
         # Valida track
         is_valid, invalid_reason = self.track_validation_service.is_valid(track)
@@ -482,7 +487,7 @@ class ProcessFaceDetectionUseCase:
                             f"(tamanho: {self.findface_queue.qsize()}/{self.findface_queue.maxsize})"
                         )
                     self.logger.debug(f"Erro ao enfileirar evento FindFace: {e}")
-        else:
+        else:            
             # Log de track descartado (sempre registra)
             self.logger.warning(
                 f"✗ Track {track_id} descartado | "
@@ -497,6 +502,19 @@ class ProcessFaceDetectionUseCase:
             if best_event is not None and self.save_images and self.image_save_service is not None:
                 self._save_event_image_async(best_event, track_id, is_valid=False)
         
+        # Log DEBUG com estatísticas completas do track finalizado
+        self.logger.debug(
+            f"Track {track_id} finalizado | "
+            f"Válido: {'Sim' if is_valid else 'Não'}, "
+            f"Eventos: {summary['event_count']}, "
+            f"Movimento: {summary['has_movement']}, "
+            f"Distância média: {summary['average_distance']:.2f}px, "
+            f"Distância máxima: {summary['max_distance']:.2f}px, "
+            f"% frames com movimento: {movement_stats['movement_percentage']:.1f}%, "
+            f"Melhor confiança: {summary['best_confidence']:.2f}, "
+            f"Melhor qualidade: {summary['best_quality']:.4f}"
+        )
+
         # Remove track
         del self.active_tracks[track_id]
         if track_id in self.track_frames_lost:

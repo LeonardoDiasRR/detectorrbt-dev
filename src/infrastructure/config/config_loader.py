@@ -95,7 +95,8 @@ class ConfigLoader:
             model_path=yaml_config.get("modelo_deteccao", {}).get("model_path", "yolov8n-face.pt"),
             confidence_threshold=yaml_config.get("modelo_deteccao", {}).get("confidence_threshold", 0.1),
             iou_threshold=yaml_config.get("modelo_deteccao", {}).get("iou_threshold", 0.07),
-            tracker=yaml_config.get("modelo_deteccao", {}).get("tracker", "bytetrack.yaml")
+            tracker=yaml_config.get("modelo_deteccao", {}).get("tracker", "bytetrack.yaml"),
+            persist=yaml_config.get("modelo_deteccao", {}).get("persist", False)
         )
         
         landmark_config = LandmarkConfig(
