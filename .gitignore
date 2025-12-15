@@ -175,7 +175,6 @@ imagens/*
 logs/*.log
 config.yaml
 teste-findface.py
-yolov12n-face_openvino_model/
 config.yaml
 *.log.*
 verify_landmarks.py
