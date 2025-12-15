@@ -49,9 +49,9 @@ tracking:
 # Filtros de detecção (aplicados antes de criar evento)
 filter:
   # Largura mínima do bbox da detecção (em pixels)
-  min_bbox_width: 50
+  min_bbox_width: 40
   # Confiança mínima da detecção para criar evento
-  min_confidence: 0.50
+  min_confidence: 0.42
 
 # Detecção de movimento no track
 track:
