@@ -44,7 +44,7 @@ tracking:
   # Limite de frames sem detecção para considerar o objeto perdido
   max_age: 60
   # Limite máximo de frames por track
-  max_frames: 600
+  max_frames: 300
 
 # Filtros de detecção (aplicados antes de criar evento)
 filter:
