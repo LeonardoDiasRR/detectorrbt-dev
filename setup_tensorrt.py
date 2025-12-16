@@ -13,6 +13,31 @@ import os
 from pathlib import Path
 
 
+def check_virtual_env():
+    """Verifica se o script está sendo executado em um ambiente virtual."""
+    in_venv = hasattr(sys, 'real_prefix') or (
+        hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix
+    )
+    
+    if not in_venv:
+        print("⚠️  AVISO: Este script não está sendo executado em um ambiente virtual")
+        print("   Certifique-se de ativar o ambiente virtual antes de executar:")
+        print()
+        if os.name == 'nt':  # Windows
+            print("   venv\\Scripts\\activate")
+            print("   python setup_tensorrt.py <modelo.pt>")
+        else:  # Linux/macOS
+            print("   source venv/bin/activate")
+            print("   python setup_tensorrt.py <modelo.pt>")
+        print()
+        print("   Ou execute através dos scripts de setup:")
+        print("   - Windows: setup.bat")
+        print("   - Linux/macOS: bash setup.sh")
+        print()
+    
+    return in_venv
+
+
 def check_gpu_available():
     """Verifica se há GPU CUDA disponível."""
     try:
@@ -127,6 +152,9 @@ def main():
     print("SETUP TENSORRT - Exportação de Modelo YOLO para TensorRT")
     print("=" * 80)
     print()
+    
+    # Verifica se está em ambiente virtual
+    check_virtual_env()
     
     # Verifica argumentos
     if len(sys.argv) < 2:
