@@ -72,7 +72,55 @@ class CameraRepositoryFindface(CameraRepository):
                     )
                     cameras.append(camera)
 
-            self.logger.info(f"Obtidas {len(cameras)} câmeras ativas do FindFace")
+            self.logger.debug(f"Obtidas {len(cameras)} câmeras ativas do FindFace")
+            return cameras
+
+        except Exception as e:
+            self.logger.error(f"Erro ao obter câmeras do FindFace: {e}", exc_info=True)
+            return []
+
+    def get_cameras(self) -> List[Camera]:
+        """
+        Obtém todas as câmeras do FindFace (ativas e inativas).
+        
+        :return: Lista de entidades Camera.
+        """
+        cameras = []
+
+        try:
+            # Obtém grupos de câmeras
+            grupos = self.findface.get_camera_groups()["results"]
+            grupos_filtrados = [
+                g for g in grupos 
+                if g["name"].lower().startswith(self.camera_prefix.lower())
+            ]
+
+            # Para cada grupo, obtém câmeras
+            for grupo in grupos_filtrados:
+                cameras_response = self.findface.get_cameras(
+                    camera_groups=[grupo["id"]],
+                    external_detector=True,
+                    ordering='id'
+                )["results"]
+                
+                # Filtra câmeras com RTSP no comment
+                cameras_filtradas = [
+                    c for c in cameras_response 
+                    if c.get("comment", "").startswith("rtsp://")
+                ]
+                
+                # Converte para entidades Camera
+                for camera_data in cameras_filtradas:
+                    camera = Camera(
+                        camera_id=IdVO(camera_data["id"]),
+                        camera_name=NameVO(camera_data["name"]),
+                        camera_token=CameraTokenVO(camera_data["external_detector_token"]),
+                        source=CameraSourceVO(camera_data["comment"].strip()),
+                        active=camera_data.get("active", True)
+                    )
+                    cameras.append(camera)
+
+            self.logger.debug(f"Obtidas {len(cameras)} câmeras do FindFace")
             return cameras
 
         except Exception as e:

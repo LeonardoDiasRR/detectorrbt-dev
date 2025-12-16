@@ -24,6 +24,7 @@ from .settings import (
     TrackConfig,
     FilterConfig,
     QueuesConfig,
+    CameraMonitoringConfig,
     CameraConfig,
     FaceQualityConfig,
     TensorRTConfig,
@@ -159,6 +160,14 @@ class ConfigLoader:
             findface_queue_max_size=yaml_config.get("queues", {}).get("findface_queue_max_size", 200)
         )
         
+        # Configuração de Monitoramento de Câmeras
+        camera_monitoring_config = CameraMonitoringConfig(
+            enabled=yaml_config.get("camera_monitoring", {}).get("enabled", True),
+            check_interval=yaml_config.get("camera_monitoring", {}).get("check_interval", 10),
+            success_tracking_window=yaml_config.get("camera_monitoring", {}).get("success_tracking_window", 100),
+            min_success_rate=yaml_config.get("camera_monitoring", {}).get("min_success_rate", 0.8)
+        )
+        
         # Configuração de Qualidade Facial
         face_quality_config = FaceQualityConfig(
             peso_confianca=float(yaml_config.get("qualidade_face", {}).get("confianca_deteccao", 3.0)),
@@ -211,6 +220,7 @@ class ConfigLoader:
             track=track_config,
             filter=filter_config,
             queues=queues_config,
+            camera_monitoring=camera_monitoring_config,
             face_quality=face_quality_config,
             tensorrt=tensorrt_config,
             openvino=openvino_config,

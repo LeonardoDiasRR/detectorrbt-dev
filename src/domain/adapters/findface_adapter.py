@@ -93,7 +93,7 @@ class FindfaceAdapter:
                     )
                     cameras.append(camera)
 
-            self.logger.info(f"Obtidas {len(cameras)} câmeras do FindFace")
+            self.logger.debug(f"Obtidas {len(cameras)} câmeras do FindFace")
             return cameras
 
         except Exception as e:

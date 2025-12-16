@@ -113,6 +113,15 @@ class QueuesConfig:
 
 
 @dataclass
+class CameraMonitoringConfig:
+    """Configuração de monitoramento dinâmico de câmeras."""
+    enabled: bool = True
+    check_interval: int = 10
+    success_tracking_window: int = 100
+    min_success_rate: float = 0.8
+
+
+@dataclass
 class FaceQualityConfig:
     """Configuração de pesos para cálculo de qualidade facial."""
     peso_confianca: float = 3.0
@@ -162,6 +171,7 @@ class AppSettings:
     track: TrackConfig
     filter: FilterConfig
     queues: QueuesConfig
+    camera_monitoring: CameraMonitoringConfig
     face_quality: FaceQualityConfig
     performance: PerformanceConfig
     tensorrt: TensorRTConfig

@@ -8,7 +8,7 @@ import threading
 import gc
 from queue import Queue, Empty
 from typing import Dict, Optional, List, Tuple
-from collections import defaultdict
+from collections import defaultdict, deque
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, Future
 import numpy as np
@@ -66,7 +66,8 @@ class ProcessFaceDetectionUseCase:
         max_frames_per_track: int = 100,
         inference_size: Optional[tuple] = None,
         detection_skip_frames: int = 0,
-        jpeg_quality: int = 95
+        jpeg_quality: int = 95,
+        success_tracking_window: int = 100
     ):
         """
         Inicializa o caso de uso de processamento de detecção de faces.
@@ -133,10 +134,14 @@ class ProcessFaceDetectionUseCase:
         
         # Estado do processamento
         self.running = False
+        self.thread: Optional[threading.Thread] = None
         self.active_tracks: Dict[int, Track] = {}
         self.track_frames_lost: Dict[int, int] = defaultdict(int)
         self.track_frame_count: Dict[int, int] = defaultdict(int)
         self.frame_count = 0
+        
+        # Rastreamento de taxa de sucesso FindFace (janela deslizante)
+        self._findface_success_queue: deque = deque(maxlen=success_tracking_window)
         
         # OTIMIZAÇÃO 3: GC periódica - evita fragmentação de memória
         self._tracks_finalized_count = 0
@@ -202,6 +207,19 @@ class ProcessFaceDetectionUseCase:
             f"ProcessFaceDetectionUseCase finalizado para câmera "
             f"{self.camera.camera_name.value()}"
         )
+
+    def get_success_rate(self) -> float:
+        """
+        Calcula a taxa de sucesso de envio ao FindFace.
+        Considera apenas falhas de fila cheia (Queue.Full).
+        
+        :return: Taxa de sucesso (0.0 a 1.0), ou 1.0 se não houver dados.
+        """
+        if len(self._findface_success_queue) == 0:
+            return 1.0
+        
+        success_count = sum(1 for success in self._findface_success_queue if success)
+        return success_count / len(self._findface_success_queue)
 
     def _process_stream(self) -> None:
         """
@@ -478,8 +496,11 @@ class ProcessFaceDetectionUseCase:
                         best_event,
                         track.event_count
                     ))
+                    # Sucesso no envio
+                    self._findface_success_queue.append(True)
                 except Exception as e:
-                    # Fila cheia - log periódico a cada 100 ocorrências
+                    # Fila cheia - contabiliza como falha
+                    self._findface_success_queue.append(False)
                     self._findface_queue_full_count += 1
                     if self._findface_queue_full_count % 100 == 0:
                         self.logger.warning(

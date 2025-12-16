@@ -22,3 +22,13 @@ class CameraRepository(ABC):
         :return: Lista de entidades Camera ativas.
         """
         pass
+
+    @abstractmethod
+    def get_cameras(self) -> List[Camera]:
+        """
+        Obtém todas as câmeras do sistema (ativas e inativas).
+        Usado para monitoramento dinâmico de mudanças de status.
+        
+        :return: Lista de entidades Camera (todas).
+        """
+        pass
