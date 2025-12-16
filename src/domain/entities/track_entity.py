@@ -88,7 +88,7 @@ class Track:
         """Verifica se o track está vazio (sem eventos)."""
         return self._event_count == 0
 
-    def add_event(self, event: Event, min_threshold_pixels: float = 50.0) -> None:
+    def add_event(self, event: Event, min_threshold_pixels: float = 2.0) -> None:
         """
         Adiciona um evento ao track.
         OTIMIZAÇÃO MÁXIMA: Armazena apenas primeiro, melhor e último evento.

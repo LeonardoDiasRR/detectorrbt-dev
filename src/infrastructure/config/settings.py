@@ -95,8 +95,8 @@ class CompressionConfig:
 @dataclass
 class TrackConfig:
     """Configuração de detecção de movimento no track."""
-    min_movement_pixels: float = 50.0
-    min_movement_percentage: float = 0.1
+    min_movement_pixels: float = 2.0
+    min_movement_percentage: float = 0.05
 
 
 @dataclass
