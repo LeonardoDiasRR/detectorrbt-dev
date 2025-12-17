@@ -76,3 +76,11 @@ class YOLOFaceDetector(IFaceDetector):
         # Chama .track() do YOLOModelAdapter 
         for result in self.model.track(**track_kwargs):
             yield result
+
+    def get_model_info(self) -> dict:
+        """
+        Obtém informações sobre o modelo YOLO.
+        
+        :return: Dicionário com informações do modelo.
+        """
+        return self.model.get_model_info()
