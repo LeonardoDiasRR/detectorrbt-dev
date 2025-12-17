@@ -78,6 +78,17 @@ class YOLOModelAdapter(IDetectionModel):
                     device = str(device[0])
                 else:
                     device = str(device)
+                
+                # Se device contém vírgula (ex: "0,1"), pega primeira GPU
+                if ',' in device:
+                    device = device.split(',')[0].strip()
+                
+                # Converte para formato PyTorch válido
+                # "0" → "cuda:0", "1" → "cuda:1", "cpu" → "cpu", "cuda:0" → "cuda:0"
+                if device and device != "cpu":
+                    if not device.startswith("cuda:"):
+                        device = f"cuda:{device}"
+                
                 self._model.to(device)
             except Exception as e:
                 logger.warning(f"Falha ao mover modelo para device {device}: {e}")

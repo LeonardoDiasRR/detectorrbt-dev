@@ -263,15 +263,21 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     
     # Obtém string de GPUs a usar ANTES de carregar modelos
     import torch
-    gpu_devices = settings.processing.gpu_devices  # String: "0", "0,1", etc
+    gpu_devices = settings.processing.gpu_devices  # String: "0", "0,1", "cpu", etc
     
     # Verifica se há GPUs disponíveis no sistema
     cuda_available = torch.cuda.is_available()
-    if cuda_available and gpu_devices:
+    
+    # Se CUDA não está disponível e gpu_devices não é "cpu", força uso de CPU
+    if not cuda_available and gpu_devices != "cpu":
+        logger.warning(f"⚠ CUDA não disponível - Forçando fallback para CPU (configurado: {gpu_devices})")
+        gpu_devices = "cpu"
+    elif cuda_available and gpu_devices != "cpu":
         logger.info(f"✓ CUDA disponível - Dispositivos: {gpu_devices}")
+    elif gpu_devices == "cpu":
+        logger.info(f"→ Usando CPU conforme configurado")
     else:
-        if not cuda_available:
-            logger.warning(f"⚠ CUDA não disponível - Modelos serão carregados em CPU")
+        logger.warning(f"⚠ CUDA não disponível - Modelos serão carregados em CPU")
     
     # Carrega detector de landmarks UMA VEZ para ser compartilhado entre todas as câmeras
     # Inferência SÍNCRONA em batch dentro de cada câmera
@@ -285,8 +291,12 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         from src.infrastructure.model.landmarks_model_factory import LandmarksModelFactory
         
         # Usa primeira GPU como device padrão (string format: "0")
+        # Se for CPU, mantém "cpu"
         # Device completo (para multi-GPU) será passado em predict_batch()
-        landmarks_device = gpu_devices.split(',')[0] if gpu_devices else "0"
+        if gpu_devices == "cpu":
+            landmarks_device = "cpu"
+        else:
+            landmarks_device = gpu_devices.split(',')[0] if gpu_devices else "0"
         
         # Cria o modelo de landmarks usando a factory
         landmarks_model = LandmarksModelFactory.create(
