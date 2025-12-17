@@ -90,6 +90,16 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
             else:
                 inference_device = str(inference_device)
             
+            # Se device contém vírgula (ex: "0,1"), pega primeira GPU
+            if ',' in inference_device:
+                inference_device = inference_device.split(',')[0].strip()
+            
+            # Converte para formato PyTorch válido
+            # "0" → "cuda:0", "1" → "cuda:1", "cpu" → "cpu", "cuda:0" → "cuda:0"
+            if inference_device and inference_device != "cpu":
+                if not inference_device.startswith("cuda:"):
+                    inference_device = f"cuda:{inference_device}"
+            
             # Move modelo para device especificado
             if inference_device is not None:
                 try:
@@ -178,6 +188,16 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
                 inference_device = str(inference_device[0])
             else:
                 inference_device = str(inference_device)
+            
+            # Se device contém vírgula (ex: "0,1"), pega primeira GPU
+            if ',' in inference_device:
+                inference_device = inference_device.split(',')[0].strip()
+            
+            # Converte para formato PyTorch válido
+            # "0" → "cuda:0", "1" → "cuda:1", "cpu" → "cpu", "cuda:0" → "cuda:0"
+            if inference_device and inference_device != "cpu":
+                if not inference_device.startswith("cuda:"):
+                    inference_device = f"cuda:{inference_device}"
             
             # Move modelo para device especificado
             if inference_device is not None:
