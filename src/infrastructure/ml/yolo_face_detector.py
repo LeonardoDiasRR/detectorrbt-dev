@@ -68,13 +68,9 @@ class YOLOFaceDetector(IFaceDetector):
             "imgsz": imgsz
         }
         
-        # Adiciona device se foi especificado
-        # Será gerenciado pelo YOLOModelAdapter via model.to(device)
-        if device is not None:
-            track_kwargs["device"] = device
-        
-        # Chama .track() do YOLOModelAdapter 
-        for result in self.model.track(**track_kwargs):
+        # Chama .track() do YOLOModelAdapter, passando device explicitamente
+        # Device será gerenciado via model.to(device) no YOLOModelAdapter
+        for result in self.model.track(device=device, **track_kwargs):
             yield result
 
     def get_model_info(self) -> dict:
