@@ -75,3 +75,4 @@ class YOLOFaceDetector(IFaceDetector):
         
         # Chama .track() do YOLOModelAdapter 
         for result in self.model.track(**track_kwargs):
+            yield result
