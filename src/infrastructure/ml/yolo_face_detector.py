@@ -54,6 +54,18 @@ class YOLOFaceDetector(IFaceDetector):
         # Determina tamanho de inferência
         imgsz = inference_size if inference_size is not None else 640
         
+        # Move o modelo para o device especificado ANTES de chamar track()
+        # Compatibilidade com versões antigas do YOLO que não suportam device em track()
+        if device is not None:
+            try:
+                self.model.to(device)
+            except Exception as e:
+                # Se model.to() falhar, tenta via _model
+                try:
+                    self.model._model.to(device)
+                except Exception as e2:
+                    pass  # Falha silenciosamente, usa device padrão
+        
         # Constrói argumentos para track()
         track_kwargs = {
             "source": source,
@@ -68,9 +80,8 @@ class YOLOFaceDetector(IFaceDetector):
             "imgsz": imgsz
         }
         
-        # Chama .track() do YOLOModelAdapter, passando device explicitamente
-        # Device será gerenciado via model.to(device) no YOLOModelAdapter
-        for result in self.model.track(device=device, **track_kwargs):
+        # Chama .track() do YOLOModelAdapter (device já foi configurado via model.to())
+        for result in self.model.track(**track_kwargs):
             yield result
 
     def get_model_info(self) -> dict:
