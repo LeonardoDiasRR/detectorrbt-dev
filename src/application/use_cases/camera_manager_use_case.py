@@ -102,9 +102,6 @@ class CameraManager:
         # Lock para sincronização de criação de models (TensorRT thread-safety)
         self.model_creation_lock = threading.Lock()
         
-        # Contador de câmeras por GPU (para balanceamento)
-        self.gpu_camera_count: Dict[int, int] = {gpu_id: 0 for gpu_id in self.gpu_devices}
-        
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def start_monitoring(self) -> None:
@@ -208,14 +205,15 @@ class CameraManager:
             return
         
         try:
-            # Seleciona GPU com menos câmeras (balanceamento)
-            gpu_id = min(self.gpu_camera_count, key=self.gpu_camera_count.get)  # type: ignore
+            # NOVO: Não faz mais round-robin de GPUs
+            # Todas as câmeras usam o mesmo device (YOLO gerencia distribuição)
+            device = self.gpu_devices
             
             # CRITICAL: Lock para criação sequencial de models (TensorRT thread-safety)
             with self.model_creation_lock:
-                # Cria model de detecção
+                # Cria model de detecção (sem gpu_id específica)
                 if self.model_factory:
-                    detection_model = self.model_factory(gpu_id=gpu_id)
+                    detection_model = self.model_factory()
                 else:
                     self.logger.error("model_factory não configurado - impossível criar model")
                     return
@@ -230,12 +228,16 @@ class CameraManager:
             # Cria landmarks detector (opcional)
             landmarks_detector = None
             if self.landmarks_detector_factory:
-                landmarks_detector = self.landmarks_detector_factory(gpu_id=gpu_id)
+                landmarks_detector = self.landmarks_detector_factory()
             
             # Cria image save service (opcional)
             image_save_service = None
             if self.image_save_service_factory and self.settings.storage.save_images:
                 image_save_service = self.image_save_service_factory(camera_name=camera.camera_name.value())
+            
+            # Converte lista de GPUs para formato que YOLO aceita
+            # Ex: [0, 1] → "0,1" ou deixa como lista conforme YOLO preferir
+            yolo_device = device if len(device) > 1 else device[0]
             
             # Cria processor
             processor = ProcessFaceDetectionUseCase(
@@ -248,7 +250,7 @@ class CameraManager:
                 track_validation_service=self.track_validation_service,
                 track_lifecycle_service=self.track_lifecycle_service,
                 landmarks_detector=landmarks_detector,
-                gpu_id=gpu_id,
+                device=yolo_device,
                 image_save_service=image_save_service,
                 face_quality_service=self.face_quality_service,
                 tracker_config=self.settings.yolo.tracker,
@@ -283,10 +285,9 @@ class CameraManager:
             
             # Registra processor ativo
             self.active_processors[camera_id] = processor
-            self.gpu_camera_count[gpu_id] += 1
             
             self.logger.info(
-                f"✓ Câmera {camera.camera_name.value()} (ID: {camera_id}) iniciada na GPU {gpu_id}"
+                f"✓ Câmera {camera.camera_name.value()} (ID: {camera_id}) iniciada com device(s): {yolo_device}"
             )
             
         except Exception as e:
@@ -318,9 +319,6 @@ class CameraManager:
                         f"Thread da câmera {camera_id} não finalizou no timeout - "
                         f"será deixada como daemon"
                     )
-            
-            # Atualiza contadores GPU
-            self.gpu_camera_count[processor.gpu_id] -= 1
             
             # Remove do registro
             del self.active_processors[camera_id]
@@ -366,7 +364,7 @@ class CameraManager:
         return {
             "camera_id": camera_id,
             "camera_name": processor.camera.camera_name.value(),
-            "gpu_id": processor.gpu_id,
+            "device": processor.device,
             "success_rate": processor.get_success_rate(),
             "frame_count": processor.frame_count,
             "active_tracks": len(processor.active_tracks),

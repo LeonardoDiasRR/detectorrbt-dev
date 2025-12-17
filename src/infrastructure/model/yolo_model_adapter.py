@@ -43,6 +43,7 @@ class YOLOModelAdapter(IDetectionModel):
         self,
         source: str,
         tracker: str,
+        device=None,
         persist: bool = True,
         conf: float = 0.1,
         iou: float = 0.07,
@@ -54,20 +55,40 @@ class YOLOModelAdapter(IDetectionModel):
     ) -> Iterator[Any]:
         """
         Realiza tracking usando YOLO padrão.
+        
+        :param source: Fonte de vídeo (arquivo, stream RTSP, câmera, etc).
+        :param tracker: Configuração do rastreador.
+        :param device: Device(s) para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1"
+        :param persist: Se True, mantém IDs de tracks entre reinícios.
+        :param conf: Threshold de confiança.
+        :param iou: Threshold de IoU para NMS.
+        :param show: Se deve exibir vídeo.
+        :param stream: Se deve usar streaming.
+        :param batch: Tamanho do batch.
+        :param verbose: Se deve imprimir logs verbosos.
+        :param imgsz: Tamanho de inferência.
+        :return: Iterator com resultados de tracking.
         """
-        return self._model.track(
-            source=source,
-            tracker=tracker,
-            persist=persist,
-            conf=conf,
-            iou=iou,
-            show=show,
-            stream=stream,
-            batch=batch,
-            verbose=verbose,
-            half=self.use_fp16,
-            imgsz=imgsz
-        )
+        # Se device não foi especificado, usa o padrão (None deixa YOLO decidir)
+        track_kwargs = {
+            "source": source,
+            "tracker": tracker,
+            "persist": persist,
+            "conf": conf,
+            "iou": iou,
+            "show": show,
+            "stream": stream,
+            "batch": batch,
+            "verbose": verbose,
+            "half": self.use_fp16,
+            "imgsz": imgsz
+        }
+        
+        # Adiciona device se foi especificado
+        if device is not None:
+            track_kwargs["device"] = device
+        
+        return self._model.track(**track_kwargs)
     
     def get_model_info(self) -> dict:
         """

@@ -45,7 +45,7 @@ class ProcessFaceDetectionUseCase:
         track_validation_service: TrackValidationService,
         track_lifecycle_service: TrackLifecycleService,
         landmarks_detector: Optional[ILandmarksDetector] = None,
-        gpu_id: int = 0,
+        device=None,
         image_save_service: Optional[ImageSaveService] = None,
         face_quality_service: Optional[FaceQualityService] = None,
         tracker_config: str = "bytetrack.yaml",
@@ -81,7 +81,7 @@ class ProcessFaceDetectionUseCase:
         :param track_validation_service: Serviço de validação de tracks.
         :param track_lifecycle_service: Serviço de ciclo de vida de tracks.
         :param landmarks_detector: Implementação opcional de ILandmarksDetector (inferência síncrona em batch).
-        :param gpu_id: ID da GPU utilizada.
+        :param device: Device(s) para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1". Deixar None deixa YOLO decidir.
         :param image_save_service: Serviço para salvamento assíncrono de imagens.
         :param face_quality_service: Serviço para cálculo de qualidade facial.
         :param tracker_config: Configuração do ByteTrack.
@@ -108,7 +108,7 @@ class ProcessFaceDetectionUseCase:
         self.findface_adapter = findface_adapter
         self.findface_queue = findface_queue
         self.landmarks_detector = landmarks_detector
-        self.gpu_id = gpu_id
+        self.device = device
         self.image_save_service = image_save_service
         
         # Domain Services (injetados já configurados)
@@ -232,6 +232,7 @@ class ProcessFaceDetectionUseCase:
             conf_threshold=self.conf_threshold,
             iou_threshold=self.iou_threshold,
             tracker=self.tracker_config,
+            device=self.device,
             inference_size=self.inference_size,
             show=self.show_video
         ):

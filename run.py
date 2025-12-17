@@ -357,15 +357,9 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     face_quality_service = FaceQualityService() if settings.landmark.model_path else None
     
     # Define fábricas para criação de modelos e detectores
-    def create_model(gpu_id):
+    def create_model():
         """Fábrica para criar modelos de detecção"""
-        # Configura GPU antes de criar o modelo (se disponível)
-        if cuda_available and isinstance(gpu_id, int):
-            import torch
-            torch.cuda.set_device(gpu_id)
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
-        
+        # NOVO: Não mais seleciona GPU específica - YOLO gerencia distribuição
         return ModelFactory.create_model(
             model_path=settings.yolo.model_path,
             use_tensorrt=settings.tensorrt.enabled,
@@ -383,7 +377,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
             persist=settings.yolo.persist
         )
     
-    def create_landmarks_detector(gpu_id):
+    def create_landmarks_detector():
         """Fábrica para criar detectores de landmarks (compartilhados)"""
         return landmarks_detector
     

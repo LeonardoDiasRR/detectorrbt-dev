@@ -32,6 +32,7 @@ class YOLOFaceDetector(IFaceDetector):
         conf_threshold: float = 0.1,
         iou_threshold: float = 0.07,
         tracker: str = "bytetrack.yaml",
+        device=None,
         inference_size: Optional[Tuple[int, int]] = None,
         batch: int = 1,
         show: bool = False
@@ -43,6 +44,7 @@ class YOLOFaceDetector(IFaceDetector):
         :param conf_threshold: Threshold de confiança para detecções.
         :param iou_threshold: Threshold de IoU para NMS.
         :param tracker: Modelo de rastreamento (bytetrack.yaml ou deep_sort.yaml).
+        :param device: Device(s) para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1"
         :param inference_size: Tamanho de inferência (width, height).
         :param batch: Tamanho do batch para processamento.
         :param show: Se True, exibe o vídeo em tempo real.
@@ -51,19 +53,26 @@ class YOLOFaceDetector(IFaceDetector):
         # Determina tamanho de inferência
         imgsz = inference_size if inference_size is not None else 640
         
-        # Chama .track() do YOLO com parâmetros explícitos (retorna generator)
-        for result in self.model.track(
-            source=source,
-            tracker=tracker,
-            persist=self.persist,
-            conf=conf_threshold,
-            iou=iou_threshold,
-            verbose=False,
-            stream=True,
-            batch=batch,
-            show=show,
-            imgsz=imgsz
-        ):
+        # Constrói argumentos para track()
+        track_kwargs = {
+            "source": source,
+            "tracker": tracker,
+            "persist": self.persist,
+            "conf": conf_threshold,
+            "iou": iou_threshold,
+            "verbose": False,
+            "stream": True,
+            "batch": batch,
+            "show": show,
+            "imgsz": imgsz
+        }
+        
+        # Adiciona device se foi especificado
+        if device is not None:
+            track_kwargs["device"] = device
+        
+        # Chama .track() do YOLO com parâmetros (retorna generator)
+        for result in self.model.track(**track_kwargs):
             yield result
 
     def get_model_info(self) -> dict:

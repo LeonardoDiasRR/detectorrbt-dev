@@ -20,6 +20,7 @@ class IFaceDetector(ABC):
         conf_threshold: float = 0.5,
         iou_threshold: float = 0.5,
         tracker: str = "bytetrack.yaml",
+        device=None,
         inference_size: Optional[Tuple[int, int]] = None,
         batch: int = 1,
         show: bool = False
@@ -31,6 +32,7 @@ class IFaceDetector(ABC):
         :param conf_threshold: Threshold de confiança para detecções.
         :param iou_threshold: Threshold de IoU para NMS.
         :param tracker: Modelo de rastreamento (bytetrack.yaml ou deep_sort.yaml).
+        :param device: Device(s) para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1"
         :param inference_size: Tamanho de inferência (width, height).
         :param batch: Tamanho do batch para processamento.
         :param show: Se True, exibe o vídeo em tempo real.
