@@ -7,6 +7,7 @@ Implementa a interface ILandmarksModel usando Ultralytics YOLO.
 from typing import Optional, Tuple, List
 import numpy as np
 import logging
+import torch
 from ultralytics import YOLO
 
 from src.domain.services.landmarks_model_interface import ILandmarksModel
@@ -30,6 +31,14 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         self.model_path = model_path
         self.device = device
         self.model = YOLO(model_path)
+        
+        # Configura FP16 se GPU CUDA estiver disponível
+        self.use_fp16 = torch.cuda.is_available()
+        if self.use_fp16:
+            self.model.to('cuda')
+            logger.info(f"Modelo de landmarks carregado com FP16 em GPU CUDA")
+        else:
+            logger.info(f"Modelo de landmarks carregado com FP32 em CPU")
         
         # NÃO move modelo para device na inicialização
         # YOLO gerencia device dinamicamente via parâmetro em cada chamada predict()
@@ -147,7 +156,7 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
             'backend': 'YOLO',
             'device': self.device,
             'num_keypoints': self._num_keypoints,
-            'precision': 'FP32',  # YOLO padrão usa FP32
+            'precision': 'FP16' if self.use_fp16 else 'FP32',
             'format': 'PyTorch'
         }
     
