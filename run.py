@@ -275,6 +275,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     
     # Carrega detector de landmarks UMA VEZ para ser compartilhado entre todas as câmeras
     # Inferência SÍNCRONA em batch dentro de cada câmera
+    # NOTA: Landmarks usa apenas a primeira GPU (não faz multi-GPU)
     landmarks_detector = None
     try:
         logger.info(f"Iniciando carregamento do detector de landmarks...")
@@ -283,10 +284,13 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         from src.infrastructure.ml.yolo_landmarks_detector import YOLOLandmarksDetector
         from src.infrastructure.model.landmarks_model_factory import LandmarksModelFactory
         
+        # Seleciona primeira GPU para landmarks (não precisa multi-GPU)
+        landmarks_device = gpu_devices[0] if gpu_devices else "cpu"
+        
         # Cria o modelo de landmarks usando a factory
         landmarks_model = LandmarksModelFactory.create(
             model_path=settings.landmark.model_path,
-            device=gpu_devices
+            device=landmarks_device
         )
         
         # Cria o detector usando o modelo criado
