@@ -58,7 +58,7 @@ class YOLOModelAdapter(IDetectionModel):
         
         :param source: Fonte de vídeo (arquivo, stream RTSP, câmera, etc).
         :param tracker: Configuração do rastreador.
-        :param device: Device(s) para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1"
+        :param device: Device para inferência (str: "0", "0,1", etc). Se None, usa padrão.
         :param persist: Se True, mantém IDs de tracks entre reinícios.
         :param conf: Threshold de confiança.
         :param iou: Threshold de IoU para NMS.
@@ -73,6 +73,11 @@ class YOLOModelAdapter(IDetectionModel):
         # Compatibilidade com versões antigas do YOLO que não suportam device em track()
         if device is not None:
             try:
+                # Se device for lista, converte para primeiro elemento (string)
+                if isinstance(device, (list, tuple)):
+                    device = str(device[0])
+                else:
+                    device = str(device)
                 self._model.to(device)
             except Exception as e:
                 logger.warning(f"Falha ao mover modelo para device {device}: {e}")

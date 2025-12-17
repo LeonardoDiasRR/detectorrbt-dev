@@ -74,16 +74,23 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         :param face_crop: Imagem da face (crop) em formato BGR.
         :param conf: Threshold de confiança mínima.
         :param verbose: Se deve exibir logs detalhados.
-        :param device: Device para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1". Se None, usa device padrão.
+        :param device: Device para inferência (str: "0", "0,1", etc). Se None, usa device padrão.
         :return: Tupla (landmarks, confidence) ou None.
         """
         if face_crop.size == 0:
             return None
         
         try:
-            # Move o modelo para o device especificado
-            # Compatibilidade com versões antigas do YOLO
+            # Determina device a usar (string format)
             inference_device = device if device is not None else self.device
+            
+            # Se device for lista, pega primeira GPU (PyTorch to() não aceita lista)
+            if isinstance(inference_device, (list, tuple)):
+                inference_device = str(inference_device[0])
+            else:
+                inference_device = str(inference_device)
+            
+            # Move modelo para device especificado
             if inference_device is not None:
                 try:
                     self.model.to(inference_device)
@@ -156,16 +163,23 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         :param face_crops: Lista de crops de face (arrays numpy).
         :param conf: Confiança mínima para detecção.
         :param verbose: Se True, exibe informações de debug.
-        :param device: Device para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1". Se None, usa device padrão.
+        :param device: Device para inferência (str: "0", "0,1", etc). Se None, usa device padrão.
         :return: Lista de tuplas (landmarks, confidence) ou None para cada crop.
         """
         if not face_crops:
             return []
         
         try:
-            # Move o modelo para o device especificado
-            # Compatibilidade com versões antigas do YOLO
+            # Determina device a usar (string format)
             inference_device = device if device is not None else self.device
+            
+            # Se device for lista, pega primeira GPU (PyTorch to() não aceita lista)
+            if isinstance(inference_device, (list, tuple)):
+                inference_device = str(inference_device[0])
+            else:
+                inference_device = str(inference_device)
+            
+            # Move modelo para device especificado
             if inference_device is not None:
                 try:
                     self.model.to(inference_device)

@@ -53,7 +53,7 @@ class CameraManager:
         landmarks_detector_factory: Optional[Any] = None,
         image_save_service_factory: Optional[Any] = None,
         # GPU devices disponíveis
-        gpu_devices: Optional[List[int]] = None
+        gpu_devices: Optional[str] = None
     ):
         """
         Inicializa o gerenciador de câmeras.
@@ -71,7 +71,7 @@ class CameraManager:
         :param face_detector_factory: Factory para criar face detectors.
         :param landmarks_detector_factory: Factory para criar landmarks detectors.
         :param image_save_service_factory: Factory para criar image save services.
-        :param gpu_devices: Lista de IDs de GPUs disponíveis.
+        :param gpu_devices: String com IDs de GPUs disponíveis (ex: "0", "0,1", "0,1,2").
         """
         self.camera_repository = camera_repository
         self.findface_queue = findface_queue
@@ -91,8 +91,8 @@ class CameraManager:
         self.landmarks_detector_factory = landmarks_detector_factory
         self.image_save_service_factory = image_save_service_factory
         
-        # GPUs disponíveis
-        self.gpu_devices = gpu_devices if gpu_devices else [0]
+        # GPUs disponíveis (string format: "0", "0,1", etc)
+        self.gpu_devices = gpu_devices if gpu_devices else "0"
         
         # Estado do gerenciamento
         self.active_processors: Dict[int, ProcessFaceDetectionUseCase] = {}
@@ -206,6 +206,7 @@ class CameraManager:
         
         try:
             # Todas as câmeras usam o mesmo device (YOLO gerencia distribuição)
+            # gpu_devices é string no formato "0", "0,1", etc
             device = self.gpu_devices
             
             # CRITICAL: Lock para criação sequencial de models (TensorRT thread-safety)
@@ -234,9 +235,8 @@ class CameraManager:
             if self.image_save_service_factory and self.settings.storage.save_images:
                 image_save_service = self.image_save_service_factory(camera_name=camera.camera_name.value())
             
-            # Converte lista de GPUs para formato que YOLO aceita
-            # Ex: [0, 1] → [0, 1] ou [0] conforme o tamanho
-            yolo_device = device if len(device) > 1 else device[0]
+            # gpu_devices é string: "0", "0,1", "0,1,2" - passa direto para ProcessFaceDetectionUseCase
+            yolo_device = device
             
             # Cria processor
             processor = ProcessFaceDetectionUseCase(

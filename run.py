@@ -261,9 +261,9 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     os.makedirs(imagens_dir, exist_ok=True)
     logger.info(f"Diretório '{imagens_dir}' criado.")
     
-    # Obtém lista de GPUs a usar ANTES de carregar modelos
+    # Obtém string de GPUs a usar ANTES de carregar modelos
     import torch
-    gpu_devices = settings.processing.gpu_devices
+    gpu_devices = settings.processing.gpu_devices  # String: "0", "0,1", etc
     
     # Verifica se há GPUs disponíveis no sistema
     cuda_available = torch.cuda.is_available()
@@ -275,7 +275,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     
     # Carrega detector de landmarks UMA VEZ para ser compartilhado entre todas as câmeras
     # Inferência SÍNCRONA em batch dentro de cada câmera
-    # NOTA: Landmarks AGORA gerencia multi-GPU via device parameter em predict_batch()
+    # NOTA: Landmarks gerencia multi-GPU via device parameter em predict_batch()
     landmarks_detector = None
     try:
         logger.info(f"Iniciando carregamento do detector de landmarks...")
@@ -284,13 +284,9 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         from src.infrastructure.ml.yolo_landmarks_detector import YOLOLandmarksDetector
         from src.infrastructure.model.landmarks_model_factory import LandmarksModelFactory
         
-        # Converte lista de GPUs para string no formato esperado pelo YOLO
-        # Ex: [0, 1] -> "0" (usa primeira como padrão, mas device parameter em predict_batch pode sobrescrever)
-        if gpu_devices:
-            # Se houver múltiplas GPUs, usa a primeira como padrão
-            landmarks_device = str(gpu_devices[0])
-        else:
-            landmarks_device = "cpu"
+        # Usa primeira GPU como device padrão (string format: "0")
+        # Device completo (para multi-GPU) será passado em predict_batch()
+        landmarks_device = gpu_devices.split(',')[0] if gpu_devices else "0"
         
         # Cria o modelo de landmarks usando a factory
         landmarks_model = LandmarksModelFactory.create(

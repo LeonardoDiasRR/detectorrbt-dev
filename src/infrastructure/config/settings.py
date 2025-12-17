@@ -55,14 +55,14 @@ class FindFaceConfig:
 @dataclass
 class ProcessingConfig:
     """Configuração de processamento."""
-    gpu_devices: List[int] = None
+    gpu_devices: str = "0"  # String formato "0", "0,1", "0,1,2"
     cpu_batch_size: int = 1
     gpu_batch_size: int = 32
     
     def __post_init__(self):
         """Inicializa valores padrão após criação."""
         if self.gpu_devices is None:
-            self.gpu_devices = [0]
+            self.gpu_devices = "0"
 
 
 @dataclass

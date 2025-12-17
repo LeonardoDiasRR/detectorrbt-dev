@@ -115,21 +115,21 @@ class ConfigLoader:
         # Carrega gpu_devices do YAML (string separada por vírgula, ex: "0,1,2")
         gpu_devices_value = yaml_config.get("processing", {}).get("gpu_devices", "0")
         
-        # Parse string com IDs de GPU separados por vírgula
+        # Mantém como string - YOLO e PyTorch aceitam strings como "0", "0,1", "cuda:0"
         try:
             if isinstance(gpu_devices_value, str):
-                # Remove espaços e split por vírgula
-                gpu_devices = [int(x.strip()) for x in gpu_devices_value.split(',')]
+                # Normaliza: remove espaços, mantém como string
+                gpu_devices = ','.join(x.strip() for x in gpu_devices_value.split(','))
             elif isinstance(gpu_devices_value, int):
-                # Compatibilidade com valores inteiros
-                gpu_devices = [gpu_devices_value]
+                # Compatibilidade: converte int para string
+                gpu_devices = str(gpu_devices_value)
             elif isinstance(gpu_devices_value, list):
-                # Compatibilidade com listas antigas (retrocompatibilidade)
-                gpu_devices = gpu_devices_value
+                # Compatibilidade: converte lista para string
+                gpu_devices = ','.join(str(x) for x in gpu_devices_value)
             else:
-                gpu_devices = [0]  # Fallback para GPU 0
+                gpu_devices = "0"  # Fallback para GPU 0
         except (ValueError, AttributeError):
-            gpu_devices = [0]  # Fallback para GPU 0 em caso de erro
+            gpu_devices = "0"  # Fallback para GPU 0 em caso de erro
         
         processing_config = ProcessingConfig(
             gpu_devices=gpu_devices,
