@@ -45,6 +45,7 @@ class YOLOFaceDetector(IFaceDetector):
         :param iou_threshold: Threshold de IoU para NMS.
         :param tracker: Modelo de rastreamento (bytetrack.yaml ou deep_sort.yaml).
         :param device: Device(s) para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1"
+                       Será aplicado via model.to(device) antes de chamar track().
         :param inference_size: Tamanho de inferência (width, height).
         :param batch: Tamanho do batch para processamento.
         :param show: Se True, exibe o vídeo em tempo real.
@@ -67,12 +68,9 @@ class YOLOFaceDetector(IFaceDetector):
             "imgsz": imgsz
         }
         
-        # Adiciona device se foi especificado
-        if device is not None:
-            track_kwargs["device"] = device
-        
+        # Passa device ao modelo - será gerenciado via model.to() na implementação
         # Chama .track() do YOLO com parâmetros (retorna generator)
-        for result in self.model.track(**track_kwargs):
+        for result in self.model.track(device=device, **track_kwargs):
             yield result
 
     def get_model_info(self) -> dict:

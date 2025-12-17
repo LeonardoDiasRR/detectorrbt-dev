@@ -81,10 +81,17 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
             return None
         
         try:
-            # Executa inferência
-            # YOLO gerencia multi-GPU via device parameter
+            # Move o modelo para o device especificado
+            # Compatibilidade com versões antigas do YOLO
             inference_device = device if device is not None else self.device
-            results = self.model(face_crop, conf=conf, verbose=verbose, device=inference_device)
+            if inference_device is not None:
+                try:
+                    self.model.to(inference_device)
+                except Exception as e:
+                    logger.warning(f"Falha ao mover modelo para device {inference_device}: {e}")
+            
+            # Executa inferência (sem device parameter, já movido via model.to())
+            results = self.model(face_crop, conf=conf, verbose=verbose)
             
             # Valida resultados
             if len(results) == 0 or results[0].boxes is None or len(results[0].boxes) == 0:
@@ -156,10 +163,17 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
             return []
         
         try:
-            # YOLO aceita lista de imagens para batch inference
-            # YOLO gerencia multi-GPU via device parameter
+            # Move o modelo para o device especificado
+            # Compatibilidade com versões antigas do YOLO
             inference_device = device if device is not None else self.device
-            results = self.model(face_crops, conf=conf, verbose=verbose, device=inference_device)
+            if inference_device is not None:
+                try:
+                    self.model.to(inference_device)
+                except Exception as e:
+                    logger.warning(f"Falha ao mover modelo para device {inference_device}: {e}")
+            
+            # YOLO aceita lista de imagens para batch inference (sem device parameter)
+            results = self.model(face_crops, conf=conf, verbose=verbose)
             
             batch_landmarks = []
             

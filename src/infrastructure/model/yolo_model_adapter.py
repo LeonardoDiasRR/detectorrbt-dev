@@ -69,6 +69,14 @@ class YOLOModelAdapter(IDetectionModel):
         :param imgsz: Tamanho de inferência.
         :return: Iterator com resultados de tracking.
         """
+        # Move o modelo para o device especificado ANTES de chamar track()
+        # Compatibilidade com versões antigas do YOLO que não suportam device em track()
+        if device is not None:
+            try:
+                self._model.to(device)
+            except Exception as e:
+                logger.warning(f"Falha ao mover modelo para device {device}: {e}")
+        
         # Se device não foi especificado, usa o padrão (None deixa YOLO decidir)
         track_kwargs = {
             "source": source,
@@ -84,9 +92,8 @@ class YOLOModelAdapter(IDetectionModel):
             "imgsz": imgsz
         }
         
-        # Adiciona device se foi especificado
-        if device is not None:
-            track_kwargs["device"] = device
+        # NÃO adiciona device ao track_kwargs pois track() não aceita esse parâmetro
+        # Device é gerenciado via model.to(device) acima
         
         return self._model.track(**track_kwargs)
     
