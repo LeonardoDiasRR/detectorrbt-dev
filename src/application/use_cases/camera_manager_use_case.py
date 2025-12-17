@@ -205,13 +205,12 @@ class CameraManager:
             return
         
         try:
-            # NOVO: Não faz mais round-robin de GPUs
             # Todas as câmeras usam o mesmo device (YOLO gerencia distribuição)
             device = self.gpu_devices
             
             # CRITICAL: Lock para criação sequencial de models (TensorRT thread-safety)
             with self.model_creation_lock:
-                # Cria model de detecção (sem gpu_id específica)
+                # Cria model de detecção
                 if self.model_factory:
                     detection_model = self.model_factory()
                 else:
@@ -236,7 +235,7 @@ class CameraManager:
                 image_save_service = self.image_save_service_factory(camera_name=camera.camera_name.value())
             
             # Converte lista de GPUs para formato que YOLO aceita
-            # Ex: [0, 1] → "0,1" ou deixa como lista conforme YOLO preferir
+            # Ex: [0, 1] → [0, 1] ou [0] conforme o tamanho
             yolo_device = device if len(device) > 1 else device[0]
             
             # Cria processor

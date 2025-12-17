@@ -264,19 +264,14 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     # Obtém lista de GPUs a usar ANTES de carregar modelos
     import torch
     gpu_devices = settings.processing.gpu_devices
-    num_gpus = len(gpu_devices)
     
     # Verifica se há GPUs disponíveis no sistema
     cuda_available = torch.cuda.is_available()
     if cuda_available and gpu_devices:
-        landmarks_device = gpu_devices[0]
-        logger.info(f"✓ CUDA disponível - {num_gpus} GPU(s) detectada(s): {gpu_devices}")
-        logger.info(f"✓ Modelo de landmarks será carregado na GPU: {landmarks_device}")
+        logger.info(f"✓ CUDA disponível - Dispositivos: {gpu_devices}")
     else:
-        landmarks_device = "cpu"
         if not cuda_available:
             logger.warning(f"⚠ CUDA não disponível - Modelos serão carregados em CPU")
-        logger.info(f"Modelo de landmarks será carregado em CPU")
     
     # Carrega detector de landmarks UMA VEZ para ser compartilhado entre todas as câmeras
     # Inferência SÍNCRONA em batch dentro de cada câmera
@@ -284,28 +279,19 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     try:
         logger.info(f"Iniciando carregamento do detector de landmarks...")
         logger.info(f"Modelo de landmarks: {settings.landmark.model_path}")
-        logger.info(f"Device para landmarks: {landmarks_device}")
         
         from src.infrastructure.ml.yolo_landmarks_detector import YOLOLandmarksDetector
         from src.infrastructure.model.landmarks_model_factory import LandmarksModelFactory
         
-        logger.info(f"Imports realizados com sucesso")
-        
         # Cria o modelo de landmarks usando a factory
-        logger.info(f"Criando modelo de landmarks via factory...")
         landmarks_model = LandmarksModelFactory.create(
             model_path=settings.landmark.model_path,
-            device=landmarks_device
+            device=gpu_devices
         )
-        logger.info(f"Modelo de landmarks criado com sucesso")
         
         # Cria o detector usando o modelo criado
-        logger.info(f"Criando detector de landmarks...")
         landmarks_detector = YOLOLandmarksDetector(model=landmarks_model)
-        logger.info(f"✓ Detector de landmarks carregado (SÍNCRONO): {settings.landmark.model_path}")
-        logger.info(f"✓ Device usado: {landmarks_device}")
-        logger.info(f"✓ landmarks_detector type: {type(landmarks_detector)}")
-        logger.info(f"✓ landmarks_detector is None: {landmarks_detector is None}")
+        logger.info(f"✓ Detector de landmarks carregado: {settings.landmark.model_path}")
     except Exception as e:
         logger.error(f"✗ Erro ao carregar detector de landmarks: {e}", exc_info=True)
         landmarks_detector = None
