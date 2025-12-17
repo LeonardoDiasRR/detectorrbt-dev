@@ -44,7 +44,7 @@
 - ✅ `min_movement_threshold`: Distância mínima de movimento → `TrackValidationService.min_movement_threshold`
 - ✅ `min_movement_percentage`: Percentual mínimo de movimento → `TrackValidationService.min_movement_percentage`
 - ✅ `min_confidence_threshold`: Confiança mínima → `TrackValidationService.min_confidence_threshold`
-- ✅ `min_bbox_width`: Largura mínima do bbox → `TrackValidationService.min_bbox_width`
+- ✅ `min_bbox_area`: Área mínima do bbox → `TrackValidationService.min_bbox_area`
 - ✅ `max_frames_per_track`: Máximo de frames por track → `TrackLifecycleService.max_frames_per_track`
 
 **Fluxo**: `config.yaml` → `ConfigLoader` → `AppSettings.validation` → `run.py` → `TrackValidationService` e `TrackLifecycleService`

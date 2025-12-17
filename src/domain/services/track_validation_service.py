@@ -19,7 +19,7 @@ class TrackValidationService:
         min_movement_threshold: float,
         min_movement_percentage: float,
         min_confidence_threshold: float,
-        min_bbox_width: int
+        min_bbox_area: int
     ):
         """
         Inicializa o serviço de validação de tracks.
@@ -32,7 +32,7 @@ class TrackValidationService:
         self.min_movement_threshold = min_movement_threshold
         self.min_movement_percentage = min_movement_percentage
         self.min_confidence_threshold = min_confidence_threshold
-        self.min_bbox_width = min_bbox_width
+        self.min_bbox_area = min_bbox_area
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def is_valid(self, track: Track) -> Tuple[bool, str]:
@@ -72,13 +72,13 @@ class TrackValidationService:
                 f"Confiança abaixo do mínimo ({best_confidence:.2f} < {self.min_confidence_threshold:.2f})"
             )
         
-        # 5. Verifica largura mínima do bbox
-        bbox = best_event.bbox.value()
-        bbox_width = bbox[2] - bbox[0]
-        if bbox_width < self.min_bbox_width:
+        # 5. Verifica área mínima do bbox
+        bbox = best_event.bbox
+        bbox_area = bbox.area
+        if bbox_area < self.min_bbox_area:
             return (
                 False,
-                f"Bbox muito pequeno (largura: {bbox_width}px < {self.min_bbox_width}px)"
+                f"Bbox muito pequeno (área: {bbox_area}px < {self.min_bbox_area}px)"
             )
         
         # Track válido!

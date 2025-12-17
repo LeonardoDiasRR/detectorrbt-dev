@@ -62,7 +62,7 @@ class ProcessFaceDetectionUseCase:
         min_movement_threshold: float = 10.0,
         min_movement_percentage: float = 50.0,
         min_confidence_threshold: float = 0.5,
-        min_bbox_width: int = 50,
+        min_bbox_area: int = 60,
         max_frames_per_track: int = 100,
         inference_size: Optional[tuple] = None,
         detection_skip_frames: int = 0,
@@ -97,7 +97,7 @@ class ProcessFaceDetectionUseCase:
         :param min_movement_threshold: Distância mínima para considerar movimento.
         :param min_movement_percentage: Percentual mínimo de frames com movimento.
         :param min_confidence_threshold: Confiança mínima para enviar.
-        :param min_bbox_width: Largura mínima do bbox.
+        :param min_bbox_area: Área mínima do bbox (pixels).
         :param max_frames_per_track: Máximo de eventos por track.
         :param inference_size: Tamanho de inferência.
         :param detection_skip_frames: Frames a pular entre detecções (não usado no modo YOLO stream).
@@ -318,9 +318,11 @@ class ProcessFaceDetectionUseCase:
             x1, y1 = max(0, x1), max(0, y1)
             x2, y2 = min(w, x2), min(h, y2)
             
-            # FILTRO 2: Verifica largura mínima do bbox (filtragem no frame)
+            # FILTRO 2: Verifica área mínima do bbox (filtragem no frame)
             bbox_width = x2 - x1
-            if bbox_width < self.track_validation_service.min_bbox_width:
+            bbox_height = y2 - y1
+            bbox_area = bbox_width * bbox_height
+            if bbox_area < self.track_validation_service.min_bbox_area:
                 continue
             
             # Crop da face

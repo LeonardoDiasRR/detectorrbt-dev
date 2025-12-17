@@ -103,7 +103,7 @@ class TrackConfig:
 class FilterConfig:
     """Configuração de filtros de detecção (aplicados antes de criar evento)."""
     min_confidence: float = 0.45
-    min_bbox_width: int = 60
+    min_bbox_area: int = 60
 
 
 @dataclass

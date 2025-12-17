@@ -264,7 +264,7 @@ class CameraManager:
                 min_movement_threshold=self.settings.track.min_movement_pixels,
                 min_movement_percentage=self.settings.track.min_movement_percentage,
                 min_confidence_threshold=self.settings.filter.min_confidence,
-                min_bbox_width=self.settings.filter.min_bbox_width,
+                min_bbox_area=self.settings.filter.min_bbox_area,
                 max_frames_per_track=self.settings.bytetrack.max_frames,
                 inference_size=(self.settings.performance.inference_size, self.settings.performance.inference_size),
                 detection_skip_frames=self.settings.performance.detection_skip_frames,

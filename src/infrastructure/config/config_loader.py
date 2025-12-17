@@ -153,7 +153,7 @@ class ConfigLoader:
         
         filter_config = FilterConfig(
             min_confidence=yaml_config.get("filter", {}).get("min_confidence", 0.45),
-            min_bbox_width=yaml_config.get("filter", {}).get("min_bbox_width", 60)
+            min_bbox_area=yaml_config.get("filter", {}).get("min_bbox_area", 60)
         )
         
         queues_config = QueuesConfig(

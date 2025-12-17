@@ -335,7 +335,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         min_movement_threshold=settings.track.min_movement_pixels,
         min_movement_percentage=settings.track.min_movement_percentage,
         min_confidence_threshold=settings.filter.min_confidence,
-        min_bbox_width=settings.filter.min_bbox_width
+        min_bbox_area=settings.filter.min_bbox_area
     )
     
     event_creation_service = EventCreationService(
