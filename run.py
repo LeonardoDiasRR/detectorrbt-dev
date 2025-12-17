@@ -275,7 +275,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     
     # Carrega detector de landmarks UMA VEZ para ser compartilhado entre todas as câmeras
     # Inferência SÍNCRONA em batch dentro de cada câmera
-    # NOTA: Landmarks usa apenas a primeira GPU (não faz multi-GPU)
+    # NOTA: Landmarks AGORA gerencia multi-GPU via device parameter em predict_batch()
     landmarks_detector = None
     try:
         logger.info(f"Iniciando carregamento do detector de landmarks...")
@@ -284,8 +284,13 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         from src.infrastructure.ml.yolo_landmarks_detector import YOLOLandmarksDetector
         from src.infrastructure.model.landmarks_model_factory import LandmarksModelFactory
         
-        # Seleciona primeira GPU para landmarks (não precisa multi-GPU)
-        landmarks_device = gpu_devices[0] if gpu_devices else "cpu"
+        # Converte lista de GPUs para string no formato esperado pelo YOLO
+        # Ex: [0, 1] -> "0" (usa primeira como padrão, mas device parameter em predict_batch pode sobrescrever)
+        if gpu_devices:
+            # Se houver múltiplas GPUs, usa a primeira como padrão
+            landmarks_device = str(gpu_devices[0])
+        else:
+            landmarks_device = "cpu"
         
         # Cria o modelo de landmarks usando a factory
         landmarks_model = LandmarksModelFactory.create(
@@ -296,6 +301,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         # Cria o detector usando o modelo criado
         landmarks_detector = YOLOLandmarksDetector(model=landmarks_model)
         logger.info(f"✓ Detector de landmarks carregado: {settings.landmark.model_path}")
+        logger.info(f"  Será usada distribuição de GPU via device parameter em predict_batch()")
     except Exception as e:
         logger.error(f"✗ Erro ao carregar detector de landmarks: {e}", exc_info=True)
         landmarks_detector = None

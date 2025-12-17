@@ -25,7 +25,8 @@ class YOLOLandmarksDetector(ILandmarksDetector):
         self,
         face_crop: np.ndarray,
         conf: float = 0.5,
-        verbose: bool = False
+        verbose: bool = False,
+        device=None
     ) -> Optional[Tuple[np.ndarray, float]]:
         """
         Detecta landmarks em um crop de face usando YOLO.
@@ -33,6 +34,7 @@ class YOLOLandmarksDetector(ILandmarksDetector):
         :param face_crop: Crop da face (numpy array BGR).
         :param conf: Threshold de confiança mínima.
         :param verbose: Se deve exibir logs detalhados.
+        :param device: Device para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1". Se None, usa default.
         :return: Tupla (landmarks_array, confidence) ou None se não detectou.
         """
         if face_crop.size == 0:
@@ -42,7 +44,8 @@ class YOLOLandmarksDetector(ILandmarksDetector):
         result = self.model.predict(
             face_crop=face_crop,
             conf=conf,
-            verbose=verbose
+            verbose=verbose,
+            device=device
         )
         
         return result  # Retorna (landmarks_array, confidence) ou None
@@ -51,7 +54,8 @@ class YOLOLandmarksDetector(ILandmarksDetector):
         self,
         face_crops: List[np.ndarray],
         conf: float = 0.5,
-        verbose: bool = False
+        verbose: bool = False,
+        device=None
     ) -> List[Optional[Tuple[np.ndarray, float]]]:
         """
         Detecta landmarks em múltiplos crops de face usando YOLO (batch).
@@ -60,6 +64,7 @@ class YOLOLandmarksDetector(ILandmarksDetector):
         :param face_crops: Lista de crops de face (numpy arrays BGR).
         :param conf: Threshold de confiança mínima.
         :param verbose: Se deve exibir logs detalhados.
+        :param device: Device para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1". Se None, usa default.
         :return: Lista de tuplas (landmarks_array, confidence) ou None para cada crop.
         """
         if not face_crops:
@@ -69,7 +74,8 @@ class YOLOLandmarksDetector(ILandmarksDetector):
         return self.model.predict_batch(
             face_crops=face_crops,
             conf=conf,
-            verbose=verbose
+            verbose=verbose,
+            device=device
         )
 
     def get_model_info(self) -> dict:

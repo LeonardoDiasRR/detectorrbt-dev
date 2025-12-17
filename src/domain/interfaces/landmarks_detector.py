@@ -19,7 +19,8 @@ class ILandmarksDetector(ABC):
         self,
         face_crop: np.ndarray,
         conf: float = 0.5,
-        verbose: bool = False
+        verbose: bool = False,
+        device=None
     ) -> Optional[Tuple[np.ndarray, float]]:
         """
         Detecta landmarks em um crop de face.
@@ -27,6 +28,7 @@ class ILandmarksDetector(ABC):
         :param face_crop: Crop da face (numpy array BGR).
         :param conf: Threshold de confiança mínima.
         :param verbose: Se deve exibir logs detalhados.
+        :param device: Device para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1". Se None, usa default.
         :return: Tupla (landmarks_array, confidence) ou None se não detectou.
                  landmarks_array tem shape (num_keypoints, 2) com coordenadas (x, y).
         """
@@ -37,7 +39,8 @@ class ILandmarksDetector(ABC):
         self,
         face_crops: List[np.ndarray],
         conf: float = 0.5,
-        verbose: bool = False
+        verbose: bool = False,
+        device=None
     ) -> List[Optional[Tuple[np.ndarray, float]]]:
         """
         Detecta landmarks em múltiplos crops de face (batch).
@@ -46,6 +49,7 @@ class ILandmarksDetector(ABC):
         :param face_crops: Lista de crops de face (numpy arrays BGR).
         :param conf: Threshold de confiança mínima.
         :param verbose: Se deve exibir logs detalhados.
+        :param device: Device para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1". Se None, usa default.
         :return: Lista de tuplas (landmarks_array, confidence) ou None para cada crop.
         """
         pass

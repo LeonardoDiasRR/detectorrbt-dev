@@ -359,7 +359,8 @@ class ProcessFaceDetectionUseCase:
                 batch_landmarks = self.landmarks_detector.predict_batch(
                     face_crops=face_crops,
                     conf=self.landmark_conf_threshold,
-                    verbose=False
+                    verbose=False,
+                    device=self.device
                 )
                 
                 # Converte para formato esperado: List[Tuple[np.ndarray, float] | None]

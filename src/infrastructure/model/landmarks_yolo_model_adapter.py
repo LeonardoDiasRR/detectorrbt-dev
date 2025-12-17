@@ -25,25 +25,15 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         Inicializa o adapter com um modelo YOLO.
         
         :param model_path: Caminho para o arquivo do modelo YOLO (.pt).
-        :param device: Dispositivo para inferência ('cpu', 'cuda', 'cuda:0', etc).
+        :param device: Dispositivo padrão para inferência ('cpu', 'cuda', 'cuda:0', etc). Usado apenas se não especificado em predict().
         """
         self.model_path = model_path
         self.device = device
         self.model = YOLO(model_path)
         
-        # Valida se o device está disponível antes de mover o modelo
-        import torch
-        if isinstance(device, int):
-            # Device numérico (GPU)
-            if not torch.cuda.is_available():
-                logger.warning(f"⚠ GPU {device} não disponível, usando CPU")
-                self.device = "cpu"
-                self.model.to("cpu")
-            else:
-                self.model.to(device)
-        else:
-            # Device string ('cpu', 'cuda', etc)
-            self.model.to(device)
+        # NÃO move modelo para device na inicialização
+        # YOLO gerencia device dinamicamente via parâmetro em cada chamada predict()
+        # Isso permite multi-GPU via device parameter passado per-call
         
         # Detecta número de keypoints do modelo
         self._num_keypoints = self._detect_num_keypoints()
@@ -75,7 +65,8 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         self,
         face_crop: np.ndarray,
         conf: float = 0.5,
-        verbose: bool = False
+        verbose: bool = False,
+        device=None
     ) -> Optional[Tuple[np.ndarray, float]]:
         """
         Executa inferência de landmarks no crop da face.
@@ -83,6 +74,7 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         :param face_crop: Imagem da face (crop) em formato BGR.
         :param conf: Threshold de confiança mínima.
         :param verbose: Se deve exibir logs detalhados.
+        :param device: Device para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1". Se None, usa device padrão.
         :return: Tupla (landmarks, confidence) ou None.
         """
         if face_crop.size == 0:
@@ -90,7 +82,9 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         
         try:
             # Executa inferência
-            results = self.model(face_crop, conf=conf, verbose=verbose)
+            # YOLO gerencia multi-GPU via device parameter
+            inference_device = device if device is not None else self.device
+            results = self.model(face_crop, conf=conf, verbose=verbose, device=inference_device)
             
             # Valida resultados
             if len(results) == 0 or results[0].boxes is None or len(results[0].boxes) == 0:
@@ -145,7 +139,8 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         self,
         face_crops: List[np.ndarray],
         conf: float = 0.5,
-        verbose: bool = False
+        verbose: bool = False,
+        device=None
     ) -> List[Optional[Tuple[np.ndarray, float]]]:
         """
         Executa inferência em lote para múltiplos crops de face.
@@ -154,6 +149,7 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         :param face_crops: Lista de crops de face (arrays numpy).
         :param conf: Confiança mínima para detecção.
         :param verbose: Se True, exibe informações de debug.
+        :param device: Device para inferência (int, str ou lista). Ex: 0, "0", [0, 1], "0,1". Se None, usa device padrão.
         :return: Lista de tuplas (landmarks, confidence) ou None para cada crop.
         """
         if not face_crops:
@@ -161,7 +157,9 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         
         try:
             # YOLO aceita lista de imagens para batch inference
-            results = self.model(face_crops, conf=conf, verbose=verbose)
+            # YOLO gerencia multi-GPU via device parameter
+            inference_device = device if device is not None else self.device
+            results = self.model(face_crops, conf=conf, verbose=verbose, device=inference_device)
             
             batch_landmarks = []
             
