@@ -112,14 +112,24 @@ class ConfigLoader:
             max_frames=yaml_config.get("tracking", {}).get("max_frames", 900)
         )
         
-        # Carrega gpu_devices do YAML (pode ser lista ou int único)
-        gpu_devices_value = yaml_config.get("processing", {}).get("gpu_devices", [0])
-        if isinstance(gpu_devices_value, int):
-            gpu_devices = [gpu_devices_value]
-        elif isinstance(gpu_devices_value, list):
-            gpu_devices = gpu_devices_value
-        else:
-            gpu_devices = [0]  # Fallback para GPU 0
+        # Carrega gpu_devices do YAML (string separada por vírgula, ex: "0,1,2")
+        gpu_devices_value = yaml_config.get("processing", {}).get("gpu_devices", "0")
+        
+        # Parse string com IDs de GPU separados por vírgula
+        try:
+            if isinstance(gpu_devices_value, str):
+                # Remove espaços e split por vírgula
+                gpu_devices = [int(x.strip()) for x in gpu_devices_value.split(',')]
+            elif isinstance(gpu_devices_value, int):
+                # Compatibilidade com valores inteiros
+                gpu_devices = [gpu_devices_value]
+            elif isinstance(gpu_devices_value, list):
+                # Compatibilidade com listas antigas (retrocompatibilidade)
+                gpu_devices = gpu_devices_value
+            else:
+                gpu_devices = [0]  # Fallback para GPU 0
+        except (ValueError, AttributeError):
+            gpu_devices = [0]  # Fallback para GPU 0 em caso de erro
         
         processing_config = ProcessingConfig(
             gpu_devices=gpu_devices,

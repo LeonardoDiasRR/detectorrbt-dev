@@ -5,8 +5,8 @@ processing:
   cpu_batch_size: 1
   # Tamanho do batch para inferência de landmarks em GPU (padrão: 32)
   gpu_batch_size: 32
-  # Lista de GPUs a serem utilizadas (distribuição round-robin entre câmeras)
-  gpu_devices: [0]
+  # GPUs a serem utilizadas (separadas por vírgula, ex: 0,1,2). Distribuição round-robin entre câmeras
+  gpu_devices: "0"
 
 # Otimizações de performance
 performance:
