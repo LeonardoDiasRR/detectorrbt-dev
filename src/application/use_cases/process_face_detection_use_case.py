@@ -441,11 +441,11 @@ class ProcessFaceDetectionUseCase:
             if track.event_count > 0:
                 added = self.track_lifecycle_service.add_event_to_track(track, event)
                 
-                if added:
-                    self.logger.debug(
-                        f"Track {track_id}: Evento adicionado "
-                        f"(total: {track.event_count}, conf: {event.confidence.value():.2f})"
-                    )
+                # if added:
+                #     self.logger.debug(
+                #         f"Track {track_id}: Evento adicionado "
+                #         f"(total: {track.event_count}, conf: {event.confidence.value():.2f})"
+                #     )
         
         # Atualiza tracks perdidos
         self._update_lost_tracks(detected_track_ids)
