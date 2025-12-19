@@ -200,7 +200,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         
         while running_flag_container[0]:
             try:
-                event_data = queue.get(timeout=0.5)
+                event_data = queue.get(timeout=0.1)
                 
                 if event_data is None:  # Sinal de parada
                     worker_logger.info(f"Worker {worker_id} recebeu sinal de parada")
