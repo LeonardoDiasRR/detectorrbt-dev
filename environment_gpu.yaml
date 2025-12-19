@@ -33,20 +33,19 @@ dependencies:
   - pytorch-cuda=12.4
 
   # =========================
-  # NVIDIA / CUDA / TensorRT
+  # NVIDIA / CUDA / TensorRT (via Conda)
   # =========================
   - cuda-version=12.4
   - tensorrt=10.*
 
   # =========================
-  # ONNX Runtime (GPU)
+  # ONNX toolchain (CPU libs via Conda)
   # =========================
   - onnx
   - onnxsim
-  - onnxruntime-gpu>=1.15.1,<2.0.0
 
   # =========================
-  # Utilities
+  # NVIDIA utils
   # =========================
   - nvidia-ml-py
   - gpustat
@@ -55,6 +54,14 @@ dependencies:
   # Pip-only packages
   # =========================
   - pip:
+      # YOLO
       - ultralytics>=8.0.0
+
+      # ONNX Runtime GPU (pip-only)
+      - onnxruntime-gpu>=1.15.1,<2.0.0
+
+      # OpenVINO
       - openvino-dev>=2023.0.0
+
+      # ONNX optimizer
       - onnxslim>=0.1.71
