@@ -1,0 +1,22 @@
+tracker_type: bytetrack
+
+# Thresholds de associação
+track_high_thresh: 0.35
+track_low_thresh: 0.05
+new_track_thresh: 0.3
+
+# Persistência do track
+track_buffer: 60
+frame_rate: 30
+
+# Associação
+match_thresh: 0.5
+fuse_score: true
+
+# Filtros geométricos
+aspect_ratio_thresh: 3
+min_box_area: 20
+
+# Duplicidade
+remove_duplicate_tracks: true
+duplicate_iou_thresh: 0.15
