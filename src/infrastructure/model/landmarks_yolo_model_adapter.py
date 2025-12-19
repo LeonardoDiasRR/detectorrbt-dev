@@ -72,63 +72,41 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
     
     def _normalize_batch_sizes(self, face_crops: List[np.ndarray]) -> List[np.ndarray]:
         """
-        Normaliza o tamanho de todas as imagens no batch para a mesma dimensão.
-        Isso evita erros de tensor size mismatch no YOLO.
+        Normaliza o tamanho de todas as imagens no batch para 640x480 pixels.
+        Cria uma imagem com fundo preto e coloca o crop no canto superior esquerdo.
         
         :param face_crops: Lista de crops de face com possivelmente diferentes tamanhos.
-        :return: Lista de crops redimensionados para o mesmo tamanho.
+        :return: Lista de crops normalizados para 640x480 pixels.
         """
         if not face_crops:
             return []
         
-        # Se todas as imagens já têm o mesmo tamanho, retorna como está
-        if len(face_crops) <= 1:
-            return face_crops
-        
-        # Encontra a menor altura e largura comum
-        heights = [img.shape[0] for img in face_crops if img is not None and img.size > 0]
-        widths = [img.shape[1] for img in face_crops if img is not None and img.size > 0]
-        
-        if not heights or not widths:
-            return face_crops
-        
-        # Usa tamanho de potência de 2 mais próximo para GPU optimization
-        # YOLO funciona melhor com tamanhos múltiplos de 32
-        min_height = min(heights)
-        min_width = min(widths)
-        
-        # Alinha para múltiplo de 32 (stride padrão do YOLO)
-        target_height = (min_height // 32) * 32
-        target_width = (min_width // 32) * 32
-        
-        if target_height < 32:
-            target_height = 32
-        if target_width < 32:
-            target_width = 32
-        
-        # Redimensiona todas as imagens (apenas se necessário)
         normalized = []
+        target_width = 640
+        target_height = 480
+        
         for img in face_crops:
             if img is None or img.size == 0:
-                normalized.append(img)
-            elif img.shape[0] == target_height and img.shape[1] == target_width:
-                # Já tem o tamanho correto
-                normalized.append(img)
+                # Cria uma imagem preta 640x480 para crops inválidos
+                black_image = np.zeros((target_height, target_width, 3), dtype=np.uint8)
+                normalized.append(black_image)
             else:
-                # Redimensiona usando OpenCV (mais eficiente que numpy)
-                try:
-                    import cv2
-                    resized = cv2.resize(img, (target_width, target_height), interpolation=cv2.INTER_LINEAR)
-                    normalized.append(resized)
-                except ImportError:
-                    # Se cv2 não disponível, usa resize do numpy
-                    from scipy import ndimage
-                    scale_y = target_height / img.shape[0]
-                    scale_x = target_width / img.shape[1]
-                    resized = ndimage.zoom(img, (scale_y, scale_x, 1), order=1)
-                    normalized.append(resized.astype(np.uint8))
+                # Cria canvas preto 640x480
+                canvas = np.zeros((target_height, target_width, 3), dtype=np.uint8)
+                
+                # Obtém dimensões do crop
+                crop_height, crop_width = img.shape[:2]
+                
+                # Copia o crop para o canto superior esquerdo da canvas
+                # Limita ao tamanho máximo da canvas se necessário
+                end_height = min(crop_height, target_height)
+                end_width = min(crop_width, target_width)
+                
+                canvas[0:end_height, 0:end_width] = img[0:end_height, 0:end_width]
+                normalized.append(canvas)
         
         return normalized
+
 
     
     def predict(
