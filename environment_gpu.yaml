@@ -1,8 +1,8 @@
 name: detectorrbt
 
 channels:
-  - nvidia
   - pytorch
+  - nvidia
   - conda-forge
   - defaults
 
@@ -33,13 +33,7 @@ dependencies:
   - pytorch-cuda=12.4
 
   # =========================
-  # NVIDIA / CUDA / TensorRT (Conda)
-  # =========================
-  - cuda-version=12.4
-  - tensorrt=10.*
-
-  # =========================
-  # ONNX core (Conda)
+  # ONNX core
   # =========================
   - onnx
 
@@ -50,20 +44,21 @@ dependencies:
   - gpustat
 
   # =========================
-  # Pip-only packages
+  # Pip-only (OBRIGATÓRIO)
   # =========================
   - pip:
       # YOLO
       - ultralytics>=8.0.0
 
-      # ONNX Runtime GPU (pip-only)
+      # TensorRT (única forma possível)
+      - tensorrt-cu12>=10.0,<11
+
+      # ONNX Runtime GPU
       - onnxruntime-gpu>=1.15.1,<2.0.0
 
-      # ONNX simplifier (pip-only)
+      # ONNX tools
       - onnxsim
+      - onnxslim>=0.1.71
 
       # OpenVINO
       - openvino-dev>=2023.0.0
-
-      # ONNX optimizer
-      - onnxslim>=0.1.71
