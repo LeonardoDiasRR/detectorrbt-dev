@@ -70,6 +70,67 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         # Padrão: 5 keypoints (olhos, nariz, cantos da boca)
         return 5
     
+    def _normalize_batch_sizes(self, face_crops: List[np.ndarray]) -> List[np.ndarray]:
+        """
+        Normaliza o tamanho de todas as imagens no batch para a mesma dimensão.
+        Isso evita erros de tensor size mismatch no YOLO.
+        
+        :param face_crops: Lista de crops de face com possivelmente diferentes tamanhos.
+        :return: Lista de crops redimensionados para o mesmo tamanho.
+        """
+        if not face_crops:
+            return []
+        
+        # Se todas as imagens já têm o mesmo tamanho, retorna como está
+        if len(face_crops) <= 1:
+            return face_crops
+        
+        # Encontra a menor altura e largura comum
+        heights = [img.shape[0] for img in face_crops if img is not None and img.size > 0]
+        widths = [img.shape[1] for img in face_crops if img is not None and img.size > 0]
+        
+        if not heights or not widths:
+            return face_crops
+        
+        # Usa tamanho de potência de 2 mais próximo para GPU optimization
+        # YOLO funciona melhor com tamanhos múltiplos de 32
+        min_height = min(heights)
+        min_width = min(widths)
+        
+        # Alinha para múltiplo de 32 (stride padrão do YOLO)
+        target_height = (min_height // 32) * 32
+        target_width = (min_width // 32) * 32
+        
+        if target_height < 32:
+            target_height = 32
+        if target_width < 32:
+            target_width = 32
+        
+        # Redimensiona todas as imagens (apenas se necessário)
+        normalized = []
+        for img in face_crops:
+            if img is None or img.size == 0:
+                normalized.append(img)
+            elif img.shape[0] == target_height and img.shape[1] == target_width:
+                # Já tem o tamanho correto
+                normalized.append(img)
+            else:
+                # Redimensiona usando OpenCV (mais eficiente que numpy)
+                try:
+                    import cv2
+                    resized = cv2.resize(img, (target_width, target_height), interpolation=cv2.INTER_LINEAR)
+                    normalized.append(resized)
+                except ImportError:
+                    # Se cv2 não disponível, usa resize do numpy
+                    from scipy import ndimage
+                    scale_y = target_height / img.shape[0]
+                    scale_x = target_width / img.shape[1]
+                    resized = ndimage.zoom(img, (scale_y, scale_x, 1), order=1)
+                    normalized.append(resized.astype(np.uint8))
+        
+        return normalized
+
+    
     def predict(
         self,
         face_crop: np.ndarray,
@@ -215,8 +276,13 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
                 except Exception as e:
                     logger.warning(f"Falha ao mover modelo para device {inference_device}: {e}")
             
+            # CORREÇÃO: Normaliza tamanho de todas as imagens antes do batch inference
+            # YOLO falha quando imagens têm dimensões diferentes no batch
+            # Usa a menor dimensão para evitar padding excessivo
+            normalized_crops = self._normalize_batch_sizes(face_crops)
+            
             # YOLO aceita lista de imagens para batch inference (sem device parameter)
-            results = self.model(face_crops, conf=conf, verbose=verbose)
+            results = self.model(normalized_crops, conf=conf, verbose=verbose)
             
             batch_landmarks = []
             
