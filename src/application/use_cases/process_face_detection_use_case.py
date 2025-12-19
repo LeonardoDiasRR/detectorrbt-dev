@@ -49,7 +49,6 @@ class ProcessFaceDetectionUseCase:
         image_save_service: Optional[ImageSaveService] = None,
         face_quality_service: Optional[FaceQualityService] = None,
         tracker_config: str = "bytetrack.yaml",
-        batch_size: int = 1,
         show_video: bool = False,
         conf_threshold: float = 0.5,
         iou_threshold: float = 0.5,

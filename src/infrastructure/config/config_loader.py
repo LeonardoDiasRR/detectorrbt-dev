@@ -7,27 +7,7 @@ convertendo-os em objetos de configuração type-safe.
 import os
 import yaml
 from pathlib import Path
-from typing import Optional
 from dotenv import load_dotenv
-
-
-def get_available_device() -> str:
-    """
-    Detecta o device disponível no sistema.
-    Se CUDA estiver disponível, retorna o valor configurado.
-    Se CUDA não estiver disponível, retorna "cpu".
-    
-    :return: String do device ("0", "0,1", "cpu", etc).
-    """
-    try:
-        import torch
-        if torch.cuda.is_available():
-            return None  # Sinaliza para usar a configuração do YAML
-        else:
-            return "cpu"
-    except ImportError:
-        # Se PyTorch não estiver disponível, usa CPU
-        return "cpu"
 
 from .settings import (
     AppSettings,
@@ -35,7 +15,6 @@ from .settings import (
     YOLOConfig,
     LandmarkConfig,
     ByteTrackConfig,
-    ProcessingConfig,
     DisplayConfig,
     LoggingConfig,
     StorageConfig,
@@ -116,7 +95,10 @@ class ConfigLoader:
             tracker=yaml_config.get("modelo_deteccao", {}).get("tracker", "bytetrack.yaml"),
             persist=yaml_config.get("modelo_deteccao", {}).get("persist", False),
             backend=yaml_config.get("modelo_deteccao", {}).get("backend", "pytorch"),
-            precision=yaml_config.get("modelo_deteccao", {}).get("precision", "FP16")
+            precision=yaml_config.get("modelo_deteccao", {}).get("precision", "FP16"),
+            device=yaml_config.get("modelo_deteccao", {}).get("device", "cpu"),
+            cpu_batch_size=yaml_config.get("modelo_deteccao", {}).get("cpu_batch_size", 1),
+            gpu_batch_size=yaml_config.get("modelo_deteccao", {}).get("gpu_batch_size", 32)
         )
         
         landmark_config = LandmarkConfig(
@@ -124,45 +106,14 @@ class ConfigLoader:
             confidence_threshold=yaml_config.get("modelo_landmark", {}).get("confidence_threshold", 0.1),
             iou_threshold=yaml_config.get("modelo_landmark", {}).get("iou_threshold", 0.75),
             backend=yaml_config.get("modelo_landmark", {}).get("backend", "pytorch"),
-            precision=yaml_config.get("modelo_landmark", {}).get("precision", "FP16")
+            precision=yaml_config.get("modelo_landmark", {}).get("precision", "FP16"),
+            device=yaml_config.get("modelo_landmark", {}).get("device", "cpu")
         )
         
         bytetrack_config = ByteTrackConfig(
             tracker_config=yaml_config.get("tracking", {}).get("tracker_config", "bytetrack.yaml"),
             max_age=yaml_config.get("tracking", {}).get("max_age", 30),
             max_frames=yaml_config.get("tracking", {}).get("max_frames", 900)
-        )
-        
-        # Carrega gpu_devices do YAML (string separada por vírgula, ex: "0,1,2")
-        gpu_devices_value = yaml_config.get("processing", {}).get("gpu_devices", "0")
-        
-        # Verifica disponibilidade de GPU e usa fallback para CPU se necessário
-        available_device = get_available_device()
-        if available_device == "cpu":
-            # CUDA não disponível - força uso de CPU
-            gpu_devices = "cpu"
-        else:
-            # CUDA disponível - mantém a configuração do YAML
-            # Mantém como string - YOLO e PyTorch aceitam strings como "0", "0,1", "cuda:0"
-            try:
-                if isinstance(gpu_devices_value, str):
-                    # Normaliza: remove espaços, mantém como string
-                    gpu_devices = ','.join(x.strip() for x in gpu_devices_value.split(','))
-                elif isinstance(gpu_devices_value, int):
-                    # Compatibilidade: converte int para string
-                    gpu_devices = str(gpu_devices_value)
-                elif isinstance(gpu_devices_value, list):
-                    # Compatibilidade: converte lista para string
-                    gpu_devices = ','.join(str(x) for x in gpu_devices_value)
-                else:
-                    gpu_devices = "0"  # Fallback para GPU 0
-            except (ValueError, AttributeError):
-                gpu_devices = "0"  # Fallback para GPU 0 em caso de erro
-        
-        processing_config = ProcessingConfig(
-            gpu_devices=gpu_devices,
-            cpu_batch_size=yaml_config.get("processing", {}).get("cpu_batch_size", 1),
-            gpu_batch_size=yaml_config.get("processing", {}).get("gpu_batch_size", 32)
         )
         
         display_config = DisplayConfig(
@@ -237,7 +188,6 @@ class ConfigLoader:
             yolo=yolo_config,
             landmark=landmark_config,
             bytetrack=bytetrack_config,
-            processing=processing_config,
             display=display_config,
             logging=logging_config,
             storage=storage_config,

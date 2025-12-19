@@ -261,21 +261,12 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     os.makedirs(imagens_dir, exist_ok=True)
     logger.info(f"Diretório '{imagens_dir}' criado.")
     
-    # Obtém string de GPUs a usar ANTES de carregar modelos
+    # Verifica disponibilidade de CUDA
     import torch
-    gpu_devices = settings.processing.gpu_devices  # String: "0", "0,1", "cpu", etc
-    
-    # Verifica se há GPUs disponíveis no sistema
     cuda_available = torch.cuda.is_available()
     
-    # Se CUDA não está disponível e gpu_devices não é "cpu", força uso de CPU
-    if not cuda_available and gpu_devices != "cpu":
-        logger.warning(f"⚠ CUDA não disponível - Forçando fallback para CPU (configurado: {gpu_devices})")
-        gpu_devices = "cpu"
-    elif cuda_available and gpu_devices != "cpu":
-        logger.info(f"✓ CUDA disponível - Dispositivos: {gpu_devices}")
-    elif gpu_devices == "cpu":
-        logger.info(f"→ Usando CPU conforme configurado")
+    if cuda_available:
+        logger.info(f"✓ CUDA disponível")
     else:
         logger.warning(f"⚠ CUDA não disponível - Modelos serão carregados em CPU")
     
@@ -290,18 +281,10 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         from src.infrastructure.ml.yolo_landmarks_detector import YOLOLandmarksDetector
         from src.infrastructure.model.landmarks_model_factory import LandmarksModelFactory
         
-        # Usa primeira GPU como device padrão (string format: "0")
-        # Se for CPU, mantém "cpu"
-        # Device completo (para multi-GPU) será passado em predict_batch()
-        if gpu_devices == "cpu":
-            landmarks_device = "cpu"
-        else:
-            landmarks_device = gpu_devices.split(',')[0] if gpu_devices else "0"
-        
-        # Cria o modelo de landmarks usando a factory
+        # Cria o modelo de landmarks usando a factory com device configurado
         landmarks_model = LandmarksModelFactory.create(
             model_path=settings.landmark.model_path,
-            device=landmarks_device,
+            device=settings.landmark.device,
             backend=settings.landmark.backend,
             precision=settings.landmark.precision
         )
@@ -309,7 +292,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         # Cria o detector usando o modelo criado
         landmarks_detector = YOLOLandmarksDetector(model=landmarks_model)
         logger.info(f"✓ Detector de landmarks carregado: {settings.landmark.model_path}")
-        logger.info(f"  Será usada distribuição de GPU via device parameter em predict_batch()")
+        logger.info(f"  Device: {settings.landmark.device}")
     except Exception as e:
         logger.error(f"✗ Erro ao carregar detector de landmarks: {e}", exc_info=True)
         landmarks_detector = None
@@ -393,8 +376,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         face_quality_service=face_quality_service,
         model_factory=create_model,
         face_detector_factory=create_face_detector,
-        landmarks_detector_factory=create_landmarks_detector,
-        gpu_devices=gpu_devices
+        landmarks_detector_factory=create_landmarks_detector
     )
     
     # Inicia monitoramento de câmeras (roda em background mesmo sem câmeras inicialmente)

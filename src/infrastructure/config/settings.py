@@ -26,6 +26,21 @@ class YOLOConfig:
     persist: bool = False
     backend: str = "pytorch"  # pytorch, tensorrt ou openvino
     precision: str = "FP16"   # FP32 ou FP16
+    device: str = "cpu"       # cpu ou cuda:N (ex: cuda:0, cuda:0,1)
+    cpu_batch_size: int = 1
+    gpu_batch_size: int = 32
+    
+    def get_batch_size(self) -> int:
+        """
+        Retorna o tamanho do batch apropriado baseado no device configurado.
+        
+        :return: Tamanho do batch (cpu_batch_size se device='cpu', gpu_batch_size se cuda)
+        """
+        if self.device == "cpu":
+            return self.cpu_batch_size
+        else:
+            # cuda:N, cuda:0,1, etc.
+            return self.gpu_batch_size
 
 
 @dataclass
@@ -36,6 +51,7 @@ class LandmarkConfig:
     iou_threshold: float = 0.75
     backend: str = "pytorch"  # pytorch, tensorrt ou openvino
     precision: str = "FP16"   # FP32 ou FP16
+    device: str = "cpu"       # cpu ou cuda:N (ex: cuda:0, cuda:0,1)
 
 
 @dataclass
@@ -54,19 +70,6 @@ class FindFaceConfig:
     password: str
     uuid: str
     group_prefix: str = "EXTERNO"
-
-
-@dataclass
-class ProcessingConfig:
-    """Configuração de processamento."""
-    gpu_devices: str = "0"  # String formato "0", "0,1", "0,1,2"
-    cpu_batch_size: int = 1
-    gpu_batch_size: int = 32
-    
-    def __post_init__(self):
-        """Inicializa valores padrão após criação."""
-        if self.gpu_devices is None:
-            self.gpu_devices = "0"
 
 
 @dataclass
@@ -151,7 +154,6 @@ class AppSettings:
     yolo: YOLOConfig
     landmark: LandmarkConfig
     bytetrack: ByteTrackConfig
-    processing: ProcessingConfig
     display: DisplayConfig
     logging: LoggingConfig
     storage: StorageConfig
@@ -163,15 +165,3 @@ class AppSettings:
     face_quality: FaceQualityConfig
     performance: PerformanceConfig
     cameras: List[CameraConfig]
-    
-    @property
-    def device(self) -> str:
-        """Retorna o dispositivo a ser usado (cuda ou cpu).
-        
-        Nota: Em configurações multi-GPU, retorna a primeira GPU da lista.
-        O dispositivo específico é definido no momento da criação do modelo.
-        """
-        import torch
-        if torch.cuda.is_available():
-            return f"cuda:{self.processing.gpu_devices[0]}"
-        return "cpu"

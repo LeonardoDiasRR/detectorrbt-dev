@@ -51,9 +51,7 @@ class CameraManager:
         model_factory: Optional[Any] = None,
         face_detector_factory: Optional[Any] = None,
         landmarks_detector_factory: Optional[Any] = None,
-        image_save_service_factory: Optional[Any] = None,
-        # GPU devices disponíveis
-        gpu_devices: Optional[str] = None
+        image_save_service_factory: Optional[Any] = None
     ):
         """
         Inicializa o gerenciador de câmeras.
@@ -71,7 +69,6 @@ class CameraManager:
         :param face_detector_factory: Factory para criar face detectors.
         :param landmarks_detector_factory: Factory para criar landmarks detectors.
         :param image_save_service_factory: Factory para criar image save services.
-        :param gpu_devices: String com IDs de GPUs disponíveis (ex: "0", "0,1", "0,1,2").
         """
         self.camera_repository = camera_repository
         self.findface_queue = findface_queue
@@ -90,9 +87,6 @@ class CameraManager:
         self.face_detector_factory = face_detector_factory
         self.landmarks_detector_factory = landmarks_detector_factory
         self.image_save_service_factory = image_save_service_factory
-        
-        # GPUs disponíveis (string format: "0", "0,1", etc)
-        self.gpu_devices = gpu_devices if gpu_devices else "0"
         
         # Estado do gerenciamento
         self.active_processors: Dict[int, ProcessFaceDetectionUseCase] = {}
