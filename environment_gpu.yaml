@@ -1,5 +1,4 @@
-name: detectorrbt
-
+name: yolo-gpu
 channels:
   - pytorch
   - nvidia
@@ -9,7 +8,7 @@ dependencies:
   # ===============================
   # Python (estável p/ GPU)
   # ===============================
-  - python=3.12
+  - python=3.10
 
   # ===============================
   # PyTorch + CUDA
@@ -52,9 +51,21 @@ dependencies:
   # ===============================
   - pip
   - pip:
+      # YOLO
       - ultralytics>=8.0.0
+
+      # OpenVINO tools (pip only)
       - openvino-dev>=2023.0.0
+
+      # ONNX otimização / runtime GPU
       - onnxslim>=0.1.71
       - onnxruntime-gpu>=1.15.1,<2.0.0
+
+      # Monitoramento de GPU
       - nvidia-ml-py>=12.535.133
       - gpustat>=1.1.1
+
+      # ===============================
+      # TensorRT (CUDA 12 – estável)
+      # ===============================
+      - tensorrt-cu12>=8.6,<10.0
