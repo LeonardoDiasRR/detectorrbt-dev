@@ -1,4 +1,4 @@
-name: yolo-gpu
+name: detectorrbt
 channels:
   - pytorch
   - nvidia
