@@ -72,44 +72,6 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
         # Padrão: 5 keypoints (olhos, nariz, cantos da boca)
         return 5
     
-    def _normalize_batch_sizes(self, face_crops: List[np.ndarray]) -> List[np.ndarray]:
-        """
-        Normaliza o tamanho de todas as imagens no batch para 640x480 pixels.
-        Cria uma imagem com fundo preto e coloca o crop no canto superior esquerdo.
-        
-        :param face_crops: Lista de crops de face com possivelmente diferentes tamanhos.
-        :return: Lista de crops normalizados para 640x480 pixels.
-        """
-        if not face_crops:
-            return []
-        
-        normalized = []
-        target_width = 640
-        target_height = 480
-        
-        for img in face_crops:
-            if img is None or img.size == 0:
-                # Cria uma imagem preta 640x480 para crops inválidos
-                black_image = np.zeros((target_height, target_width, 3), dtype=np.uint8)
-                normalized.append(black_image)
-            else:
-                # Cria canvas preto 640x480
-                canvas = np.zeros((target_height, target_width, 3), dtype=np.uint8)
-                
-                # Obtém dimensões do crop
-                crop_height, crop_width = img.shape[:2]
-                
-                # Copia o crop para o canto superior esquerdo da canvas
-                # Limita ao tamanho máximo da canvas se necessário
-                end_height = min(crop_height, target_height)
-                end_width = min(crop_width, target_width)
-                
-                canvas[0:end_height, 0:end_width] = img[0:end_height, 0:end_width]
-                normalized.append(canvas)
-        
-        return normalized
-
-
     
     def predict(
         self,
@@ -256,13 +218,9 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
                 except Exception as e:
                     logger.warning(f"Falha ao mover modelo para device {inference_device}: {e}")
             
-            # CORREÇÃO: Normaliza tamanho de todas as imagens antes do batch inference
-            # YOLO falha quando imagens têm dimensões diferentes no batch
-            # Usa a menor dimensão para evitar padding excessivo
-            normalized_crops = self._normalize_batch_sizes(face_crops)
-            
-            # YOLO aceita lista de imagens para batch inference com imgsz configurado
-            results = self.model(normalized_crops, conf=conf, verbose=verbose, imgsz=self.image_size)
+            # Processa crops diretamente sem redimensionamento
+            # YOLO gerencia automaticamente o redimensionamento via imgsz
+            results = self.model(face_crops, conf=conf, verbose=verbose, imgsz=self.image_size)
             
             batch_landmarks = []
             
