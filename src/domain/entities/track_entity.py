@@ -75,9 +75,9 @@ class Track:
         if self._event_count == 0:
             return False
         
-        # Track com 1 evento não tem referência para movimento, considera com movimento
-        if self._event_count == 1:
-            return True  # Apenas um evento, considera como movimento
+        # Track com até 3 eventos não tem referência para movimento, considera com movimento
+        if self._event_count <= 3:
+            return True
         
         # Calcula percentual de eventos com movimento
         movement_percentage = self._movement_count / self._event_count
