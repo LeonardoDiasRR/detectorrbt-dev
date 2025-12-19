@@ -46,8 +46,6 @@ from .settings import (
     CameraMonitoringConfig,
     CameraConfig,
     FaceQualityConfig,
-    TensorRTConfig,
-    OpenVINOConfig,
     PerformanceConfig
 )
 
@@ -116,13 +114,17 @@ class ConfigLoader:
             confidence_threshold=yaml_config.get("modelo_deteccao", {}).get("confidence_threshold", 0.1),
             iou_threshold=yaml_config.get("modelo_deteccao", {}).get("iou_threshold", 0.07),
             tracker=yaml_config.get("modelo_deteccao", {}).get("tracker", "bytetrack.yaml"),
-            persist=yaml_config.get("modelo_deteccao", {}).get("persist", False)
+            persist=yaml_config.get("modelo_deteccao", {}).get("persist", False),
+            backend=yaml_config.get("modelo_deteccao", {}).get("backend", "pytorch"),
+            precision=yaml_config.get("modelo_deteccao", {}).get("precision", "FP16")
         )
         
         landmark_config = LandmarkConfig(
             model_path=yaml_config.get("modelo_landmark", {}).get("model_path", "yolov8n-face.pt"),
             confidence_threshold=yaml_config.get("modelo_landmark", {}).get("confidence_threshold", 0.1),
-            iou_threshold=yaml_config.get("modelo_landmark", {}).get("iou_threshold", 0.75)
+            iou_threshold=yaml_config.get("modelo_landmark", {}).get("iou_threshold", 0.75),
+            backend=yaml_config.get("modelo_landmark", {}).get("backend", "pytorch"),
+            precision=yaml_config.get("modelo_landmark", {}).get("precision", "FP16")
         )
         
         bytetrack_config = ByteTrackConfig(
@@ -212,20 +214,7 @@ class ConfigLoader:
             peso_proporcao=float(yaml_config.get("qualidade_face", {}).get("proporcao_bbox", 1.0))
         )
         
-        # Configuração TensorRT
-        tensorrt_config = TensorRTConfig(
-            enabled=yaml_config.get("tensorrt", {}).get("enabled", True),
-            precision=yaml_config.get("tensorrt", {}).get("precision", "FP16"),
-            workspace=yaml_config.get("tensorrt", {}).get("workspace", 4)
-        )
-        
-        # Configuração OpenVINO
-        openvino_config = OpenVINOConfig(
-            enabled=yaml_config.get("openvino", {}).get("enabled", True),
-            device=yaml_config.get("openvino", {}).get("device", "AUTO"),
-            precision=yaml_config.get("openvino", {}).get("precision", "FP16")
-        )
-        
+
         # Configuração de Performance
         performance_config = PerformanceConfig(
             inference_size=yaml_config.get("performance", {}).get("inference_size", 640),
@@ -258,8 +247,6 @@ class ConfigLoader:
             queues=queues_config,
             camera_monitoring=camera_monitoring_config,
             face_quality=face_quality_config,
-            tensorrt=tensorrt_config,
-            openvino=openvino_config,
             performance=performance_config,
             cameras=cameras
         )

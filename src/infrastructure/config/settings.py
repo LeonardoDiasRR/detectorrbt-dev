@@ -24,6 +24,8 @@ class YOLOConfig:
     iou_threshold: float = 0.07
     tracker: str = "bytetrack.yaml"
     persist: bool = False
+    backend: str = "pytorch"  # pytorch, tensorrt ou openvino
+    precision: str = "FP16"   # FP32 ou FP16
 
 
 @dataclass
@@ -32,6 +34,8 @@ class LandmarkConfig:
     model_path: str = "yolov8n-face.pt"
     confidence_threshold: float = 0.1
     iou_threshold: float = 0.75
+    backend: str = "pytorch"  # pytorch, tensorrt ou openvino
+    precision: str = "FP16"   # FP32 ou FP16
 
 
 @dataclass
@@ -138,22 +142,6 @@ class PerformanceConfig:
 
 
 @dataclass
-class TensorRTConfig:
-    """Configuração do TensorRT."""
-    enabled: bool = True
-    precision: str = "FP16"  # FP16, FP32, INT8
-    workspace: int = 4  # Workspace em GB
-
-
-@dataclass
-class OpenVINOConfig:
-    """Configuração do OpenVINO."""
-    enabled: bool = True
-    device: str = "AUTO"  # AUTO, CPU, GPU, NPU
-    precision: str = "FP16"  # FP16, FP32, INT8
-
-
-@dataclass
 class AppSettings:
     """
     Configurações completas da aplicação.
@@ -174,8 +162,6 @@ class AppSettings:
     camera_monitoring: CameraMonitoringConfig
     face_quality: FaceQualityConfig
     performance: PerformanceConfig
-    tensorrt: TensorRTConfig
-    openvino: OpenVINOConfig
     cameras: List[CameraConfig]
     
     @property

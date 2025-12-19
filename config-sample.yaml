@@ -27,6 +27,10 @@ modelo_deteccao:
   tracker: "custom_track.yaml"  # Padrão "bytetrack.yaml"
   # Persistir tracks entre streams (false = reseta IDs a cada reinício)
   persist: false
+  # Backend de inferência: pytorch, tensorrt ou openvino
+  backend: "pytorch"
+  # Precisão: FP32 ou FP16
+  precision: "FP16"
 
 # Configuração do modelo de landmarks faciais
 modelo_landmark:
@@ -36,6 +40,10 @@ modelo_landmark:
   confidence_threshold: 0.1
   # IOU threshold para NMS (Non-Maximum Suppression)
   iou_threshold: 0.55
+  # Backend de inferência: pytorch, tensorrt ou openvino
+  backend: "pytorch"
+  # Precisão: FP32 ou FP16
+  precision: "FP16"
 
 # Configurações de rastreamento (tracking)
 tracking:
@@ -102,21 +110,4 @@ findface:
   # Prefixo dos grupos de câmeras no FindFace
   group_prefix: "TESTE"
 
-# Configurações TensorRT (melhor performance em GPUs NVIDIA)
-tensorrt:
-  # Habilita o uso de TensorRT se disponível (requer CUDA)
-  enabled: false
-  # Precisão: FP16 (recomendado), FP32, INT8
-  precision: "FP16"
-  # Workspace em GB para otimizações TensorRT (padrão: 4GB)
-  workspace: 4
-
-# Configurações OpenVINO
-openvino:
-  # Habilita o uso de OpenVINO se disponível
-  enabled: false
-  # Dispositivo OpenVINO: AUTO (seleção automática), CPU, GPU, NPU
-  device: "AUTO"
-  # Precisão: FP16 (recomendado), FP32, INT8
-  precision: "FP16"
 

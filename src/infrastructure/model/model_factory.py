@@ -20,13 +20,12 @@ _model_init_lock = threading.Lock()
 class ModelFactory:
     """
     Factory responsável por criar instâncias de modelos de detecção.
-    Detecta automaticamente a disponibilidade de TensorRT, OpenVINO e seleciona
-    a melhor implementação disponível.
+    Seleciona a implementação do backend baseado na configuração.
     
-    Ordem de precedência (se GPU CUDA disponível):
-    1. TensorRT (melhor performance em NVIDIA GPUs)
-    2. OpenVINO (boa performance multi-plataforma)
-    3. YOLO padrão (fallback)
+    Backends suportados:
+    1. pytorch - Implementação padrão com YOLO + PyTorch
+    2. tensorrt - Otimização para GPUs NVIDIA com TensorRT
+    3. openvino - Otimização multi-plataforma com OpenVINO
     """
     
     @staticmethod
@@ -85,28 +84,20 @@ class ModelFactory:
     @staticmethod
     def create_model(
         model_path: str,
-        use_tensorrt: bool = True,
-        tensorrt_precision: str = "FP16",
-        tensorrt_workspace: int = 4,
-        use_openvino: bool = True,
-        openvino_device: str = "AUTO",
-        openvino_precision: str = "FP16"
+        backend: str = "pytorch",
+        precision: str = "FP16"
     ) -> IDetectionModel:
         """
         Cria uma instância de modelo de detecção.
         
-        Ordem de tentativa:
-        1. TensorRT (se habilitado, CUDA disponível e TensorRT instalado)
-        2. OpenVINO (se habilitado e OpenVINO instalado)
-        3. YOLO padrão (fallback)
+        Ordem de tentativa baseada no backend configurado:
+        1. tensorrt - Se backend=tensorrt, TensorRT está disponível e CUDA ativo
+        2. openvino - Se backend=openvino e OpenVINO está instalado
+        3. pytorch - Implementação padrão (fallback para qualquer backend)
         
         :param model_path: Caminho para o arquivo do modelo.
-        :param use_tensorrt: Se deve tentar usar TensorRT (padrão: True).
-        :param tensorrt_precision: Precisão do modelo TensorRT (FP16, FP32, INT8).
-        :param tensorrt_workspace: Workspace em GB para TensorRT (padrão: 4GB).
-        :param use_openvino: Se deve tentar usar OpenVINO (padrão: True).
-        :param openvino_device: Dispositivo OpenVINO (AUTO, CPU, GPU, etc).
-        :param openvino_precision: Precisão do modelo OpenVINO (FP16, FP32, INT8).
+        :param backend: Backend a usar (pytorch, tensorrt ou openvino).
+        :param precision: Precisão do modelo (FP16 ou FP32).
         :return: Instância de IDetectionModel.
         """
         from src.infrastructure.model.yolo_model_adapter import YOLOModelAdapter
@@ -115,43 +106,53 @@ class ModelFactory:
         
         model_path_obj = Path(model_path)
         
-        # 1. Tenta TensorRT (melhor performance em GPUs NVIDIA)
-        if use_tensorrt and ModelFactory.is_tensorrt_available():
-            try:
-                logger.info(
-                    f"Tentando carregar modelo com TensorRT "
-                    f"(precision={tensorrt_precision}, workspace={tensorrt_workspace}GB)"
-                )
-                return TensorRTModelAdapter(
-                    model_path=str(model_path_obj),
-                    precision=tensorrt_precision,
-                    workspace=tensorrt_workspace
-                )
-            except Exception as e:
+        # 1. Tenta TensorRT (se solicitado e disponível)
+        if backend.lower() == "tensorrt":
+            if ModelFactory.is_tensorrt_available():
+                try:
+                    logger.info(
+                        f"Carregando modelo com TensorRT (precision={precision})"
+                    )
+                    return TensorRTModelAdapter(
+                        model_path=str(model_path_obj),
+                        precision=precision,
+                        workspace=4
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Falha ao carregar modelo com TensorRT: {e}. "
+                        "Fallback para implementação padrão YOLO."
+                    )
+            else:
                 logger.warning(
-                    f"Falha ao carregar modelo com TensorRT: {e}. "
-                    "Tentando fallback para OpenVINO ou YOLO padrão."
-                )
-        
-        # 2. Tenta OpenVINO (boa performance multi-plataforma)
-        if use_openvino and ModelFactory.is_openvino_available():
-            try:
-                logger.info(
-                    f"Tentando carregar modelo com OpenVINO "
-                    f"(device={openvino_device}, precision={openvino_precision})"
-                )
-                return OpenVINOModelAdapter(
-                    model_path=str(model_path_obj),
-                    device=openvino_device,
-                    precision=openvino_precision
-                )
-            except Exception as e:
-                logger.warning(
-                    f"Falha ao carregar modelo com OpenVINO: {e}. "
+                    "TensorRT foi solicitado mas não está disponível. "
                     "Fallback para implementação padrão YOLO."
                 )
         
-        # 3. Fallback: usa implementação padrão YOLO
+        # 2. Tenta OpenVINO (se solicitado e disponível)
+        elif backend.lower() == "openvino":
+            if ModelFactory.is_openvino_available():
+                try:
+                    logger.info(
+                        f"Carregando modelo com OpenVINO (device=AUTO, precision={precision})"
+                    )
+                    return OpenVINOModelAdapter(
+                        model_path=str(model_path_obj),
+                        device="AUTO",
+                        precision=precision
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Falha ao carregar modelo com OpenVINO: {e}. "
+                        "Fallback para implementação padrão YOLO."
+                    )
+            else:
+                logger.warning(
+                    "OpenVINO foi solicitado mas não está disponível. "
+                    "Fallback para implementação padrão YOLO."
+                )
+        
+        # 3. Fallback: usa implementação padrão YOLO (para "pytorch" ou fallbacks)
         logger.info("Carregando modelo com implementação padrão YOLO")
         return YOLOModelAdapter(model_path=str(model_path_obj))
 

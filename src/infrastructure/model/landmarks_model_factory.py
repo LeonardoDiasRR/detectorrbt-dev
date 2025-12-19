@@ -5,7 +5,6 @@ Suporta diferentes backends (YOLO, TensorRT, OpenVINO).
 """
 
 from pathlib import Path
-from typing import Optional
 
 from src.domain.services.landmarks_model_interface import ILandmarksModel
 from src.infrastructure.model.landmarks_yolo_model_adapter import LandmarksYOLOModelAdapter
@@ -21,15 +20,16 @@ class LandmarksModelFactory:
     def create(
         model_path: str,
         device: str = 'cpu',
-        backend: Optional[str] = None
+        backend: str = 'pytorch',
+        precision: str = 'FP16'
     ) -> ILandmarksModel:
         """
         Cria uma instância de ILandmarksModel baseado no modelo especificado.
         
         :param model_path: Caminho para o arquivo do modelo.
         :param device: Dispositivo para inferência ('cpu', 'cuda', etc).
-        :param backend: Backend forçado ('yolo', 'tensorrt', 'openvino').
-                       Se None, detecta automaticamente pela extensão.
+        :param backend: Backend para usar ('pytorch' atualmente suportado).
+        :param precision: Precisão do modelo ('FP16' ou 'FP32').
         :return: Instância de ILandmarksModel.
         :raises ValueError: Se o modelo não for suportado.
         :raises FileNotFoundError: Se o modelo não existir.
@@ -42,17 +42,17 @@ class LandmarksModelFactory:
                 f"Modelo de landmarks não encontrado: {model_path}"
             )
         
-        # Determina backend
-        if backend is None:
-            backend = LandmarksModelFactory._detect_backend(model_file)
-        
-        backend = backend.lower()
+        # Determina backend automaticamente pela extensão se for pytorch
+        if backend.lower() in ['pytorch', 'yolo']:
+            backend_detected = LandmarksModelFactory._detect_backend(model_file)
+        else:
+            backend_detected = backend.lower()
         
         # Cria adapter apropriado
-        if backend == 'yolo':
+        if backend_detected == 'yolo':
             return LandmarksYOLOModelAdapter(model_path, device)
         
-        elif backend == 'tensorrt':
+        elif backend_detected == 'tensorrt':
             # TODO: Implementar TensorRT adapter para landmarks
             raise NotImplementedError(
                 "TensorRT adapter para landmarks ainda não implementado. "

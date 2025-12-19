@@ -301,7 +301,9 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
         # Cria o modelo de landmarks usando a factory
         landmarks_model = LandmarksModelFactory.create(
             model_path=settings.landmark.model_path,
-            device=landmarks_device
+            device=landmarks_device,
+            backend=settings.landmark.backend,
+            precision=settings.landmark.precision
         )
         
         # Cria o detector usando o modelo criado
@@ -361,15 +363,10 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     # Define fábricas para criação de modelos e detectores
     def create_model():
         """Fábrica para criar modelos de detecção"""
-        # NOVO: Não mais seleciona GPU específica - YOLO gerencia distribuição
         return ModelFactory.create_model(
             model_path=settings.yolo.model_path,
-            use_tensorrt=settings.tensorrt.enabled,
-            tensorrt_precision=settings.tensorrt.precision,
-            tensorrt_workspace=settings.tensorrt.workspace,
-            use_openvino=settings.openvino.enabled,
-            openvino_device=settings.openvino.device,
-            openvino_precision=settings.openvino.precision
+            backend=settings.yolo.backend,
+            precision=settings.yolo.precision
         )
     
     def create_face_detector(model):
