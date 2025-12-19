@@ -62,3 +62,6 @@ dependencies:
 
       # OpenVINO
       - openvino-dev>=2023.0.0
+
+      # dotenv (nome correto no pip)
+      - python-dotenv
