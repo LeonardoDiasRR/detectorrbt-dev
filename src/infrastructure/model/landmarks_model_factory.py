@@ -4,10 +4,13 @@ Factory para criação de modelos de detecção de landmarks faciais.
 Suporta diferentes backends (YOLO, TensorRT, OpenVINO).
 """
 
+import logging
 from pathlib import Path
 
 from src.domain.services.landmarks_model_interface import ILandmarksModel
 from src.infrastructure.model.landmarks_yolo_model_adapter import LandmarksYOLOModelAdapter
+
+logger = logging.getLogger(__name__)
 
 
 class LandmarksModelFactory:
@@ -50,29 +53,19 @@ class LandmarksModelFactory:
         else:
             backend_detected = backend.lower()
         
+        # FALLBACK: TensorRT e OpenVINO ainda não suportados para landmarks
+        # Usa PyTorch automaticamente com aviso no log
+        if backend_detected in ['tensorrt', 'openvino']:
+            logger.warning(
+                f"⚠️ Backend '{backend_detected}' não suportado para landmarks. "
+                f"Usando PyTorch como fallback. "
+                f"(TensorRT e OpenVINO para landmarks serão implementados em futuras versões)"
+            )
+            backend_detected = 'yolo'
+        
         # Cria adapter apropriado
         if backend_detected == 'yolo':
             return LandmarksYOLOModelAdapter(model_path, device, image_size)
-        
-        elif backend_detected == 'tensorrt':
-            # TODO: Implementar TensorRT adapter para landmarks
-            raise NotImplementedError(
-                "TensorRT adapter para landmarks ainda não implementado. "
-                "Use modelo YOLO (.pt) por enquanto."
-            )
-        
-        elif backend == 'openvino':
-            # TODO: Implementar OpenVINO adapter para landmarks
-            raise NotImplementedError(
-                "OpenVINO adapter para landmarks ainda não implementado. "
-                "Use modelo YOLO (.pt) por enquanto."
-            )
-        
-        else:
-            raise ValueError(
-                f"Backend '{backend}' não suportado para landmarks. "
-                f"Suportados: yolo, tensorrt (futuro), openvino (futuro)"
-            )
     
     @staticmethod
     def _detect_backend(model_file: Path) -> str:
