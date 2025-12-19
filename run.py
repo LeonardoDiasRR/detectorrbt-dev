@@ -186,7 +186,7 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
     from queue import Queue
     
     num_cpus = multiprocessing.cpu_count()
-    num_findface_workers = max(4, num_cpus // 2)  # Mínimo de 4 workers
+    num_findface_workers = max(4, num_cpus)  # Mínimo de 4 workers
     findface_queue = Queue(maxsize=500)  # Fila global
     findface_workers = []
     findface_workers_running = True
