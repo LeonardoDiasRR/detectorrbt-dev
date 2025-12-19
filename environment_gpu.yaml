@@ -1,4 +1,5 @@
 name: detectorrbt
+
 channels:
   - pytorch
   - nvidia
@@ -6,12 +7,12 @@ channels:
 
 dependencies:
   # ===============================
-  # Python (versão estável p/ GPU)
+  # Python (estável p/ GPU)
   # ===============================
   - python=3.10
 
   # ===============================
-  # PyTorch + CUDA (via Conda)
+  # PyTorch + CUDA
   # ===============================
   - pytorch>=2.1
   - torchvision>=0.16
@@ -25,57 +26,35 @@ dependencies:
   - opencv
 
   # ===============================
-  # Utilitários e dependências gerais
+  # Utilitários
   # ===============================
   - pyyaml>=6.0
   - requests>=2.31.0
   - urllib3>=2.0.0
   - python-dotenv>=1.0.0
   - tzlocal>=5.0
-
-  # ===============================
-  # Tracking / processamento
-  # ===============================
   - filterpy>=1.4.5
   - lap>=0.5.12
+  - tensorboard>=2.13.0
 
   # ===============================
-  # OpenVINO (fallback p/ inferência)
+  # OpenVINO (runtime via Conda)
   # ===============================
   - openvino>=2023.0
-  - openvino-dev>=2023.0
 
   # ===============================
-  # ONNX base (runtime GPU via pip)
+  # ONNX base
   # ===============================
   - onnx>=1.12,<2.0
 
   # ===============================
-  # Monitoramento / profiling
-  # ===============================
-  - tensorboard>=2.13.0
-
-  # ===============================
-  # Pip (obrigatório)
+  # Pip
   # ===============================
   - pip
-
   - pip:
-      # YOLO
       - ultralytics>=8.0.0
-
-      # ONNX otimização / runtime GPU
+      - openvino-dev>=2023.0.0
       - onnxslim>=0.1.71
       - onnxruntime-gpu>=1.15.1,<2.0.0
-
-      # Monitoramento de GPU
       - nvidia-ml-py>=12.535.133
       - gpustat>=1.1.1
-
-      # ===============================
-      # TensorRT (CUDA 13 – opcional)
-      # ATENÇÃO: só instale se compatível
-      # ===============================
-      - tensorrt-cu13
-      - tensorrt-lean-cu13
-      - tensorrt-dispatch-cu13

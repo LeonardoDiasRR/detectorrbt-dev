@@ -1,11 +1,10 @@
 name: detectorrbt
 channels:
   - conda-forge
-  - pytorch
 
 dependencies:
   # ===============================
-  # Python (estável e compatível)
+  # Python (estável e amplamente compatível)
   # ===============================
   - python=3.10
 
@@ -17,9 +16,9 @@ dependencies:
   - opencv
 
   # ===============================
-  # OpenVINO (inferência CPU)
+  # OpenVINO (runtime via Conda)
   # ===============================
-  - openvino>=2023.0.0
+  - openvino>=2023.0
 
   # ===============================
   # Utilitários e dependências gerais
@@ -32,13 +31,15 @@ dependencies:
   - lap>=0.5.12
 
   # ===============================
-  # Pip (necessário)
+  # Pip
   # ===============================
   - pip
-
   - pip:
       # YOLO (CPU)
       - ultralytics
+
+      # OpenVINO tools / converters (pip only)
+      - openvino-dev>=2023.0.0
 
       # dotenv (nome correto no pip)
       - python-dotenv
