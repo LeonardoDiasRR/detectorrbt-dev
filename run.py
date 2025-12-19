@@ -286,7 +286,8 @@ def main(settings: AppSettings, findface_adapter: FindfaceAdapter):
             model_path=settings.landmark.model_path,
             device=settings.landmark.device,
             backend=settings.landmark.backend,
-            precision=settings.landmark.precision
+            precision=settings.landmark.precision,
+            image_size=settings.landmark.image_size
         )
         
         # Cria o detector usando o modelo criado

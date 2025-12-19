@@ -21,7 +21,8 @@ class LandmarksModelFactory:
         model_path: str,
         device: str = 'cpu',
         backend: str = 'pytorch',
-        precision: str = 'FP16'
+        precision: str = 'FP16',
+        image_size: int = 640
     ) -> ILandmarksModel:
         """
         Cria uma instância de ILandmarksModel baseado no modelo especificado.
@@ -30,6 +31,7 @@ class LandmarksModelFactory:
         :param device: Dispositivo para inferência ('cpu', 'cuda', etc).
         :param backend: Backend para usar ('pytorch' atualmente suportado).
         :param precision: Precisão do modelo ('FP16' ou 'FP32').
+        :param image_size: Tamanho de imagem para inferência (640 ou 1280).
         :return: Instância de ILandmarksModel.
         :raises ValueError: Se o modelo não for suportado.
         :raises FileNotFoundError: Se o modelo não existir.
@@ -50,7 +52,7 @@ class LandmarksModelFactory:
         
         # Cria adapter apropriado
         if backend_detected == 'yolo':
-            return LandmarksYOLOModelAdapter(model_path, device)
+            return LandmarksYOLOModelAdapter(model_path, device, image_size)
         
         elif backend_detected == 'tensorrt':
             # TODO: Implementar TensorRT adapter para landmarks

@@ -261,8 +261,8 @@ class CameraManager:
                 min_confidence_threshold=self.settings.filter.min_confidence,
                 min_bbox_area=self.settings.filter.min_bbox_area,
                 max_frames_per_track=self.settings.bytetrack.max_frames,
-                inference_size=(self.settings.performance.inference_size, self.settings.performance.inference_size),
-                detection_skip_frames=self.settings.performance.detection_skip_frames,
+                inference_size=(self.settings.yolo.image_size, self.settings.yolo.image_size),
+                detection_skip_frames=1,
                 jpeg_quality=self.settings.compression.jpeg_quality,
                 success_tracking_window=self.settings.camera_monitoring.success_tracking_window
             )

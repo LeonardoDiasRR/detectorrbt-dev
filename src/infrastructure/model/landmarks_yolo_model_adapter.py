@@ -21,15 +21,17 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
     Processa crops de faces e retorna landmarks (keypoints).
     """
     
-    def __init__(self, model_path: str, device: str = 'cpu'):
+    def __init__(self, model_path: str, device: str = 'cpu', image_size: int = 640):
         """
         Inicializa o adapter com um modelo YOLO.
         
         :param model_path: Caminho para o arquivo do modelo YOLO (.pt).
         :param device: Dispositivo padrão para inferência ('cpu', 'cuda', 'cuda:0', etc). Usado apenas se não especificado em predict().
+        :param image_size: Tamanho de imagem para inferência (640 ou 1280).
         """
         self.model_path = model_path
         self.device = device
+        self.image_size = image_size
         self.model = YOLO(model_path)
         
         # Configura FP16 se GPU CUDA estiver disponível
@@ -155,8 +157,8 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
                 except Exception as e:
                     logger.warning(f"Falha ao mover modelo para device {inference_device}: {e}")
             
-            # Executa inferência (sem device parameter, já movido via model.to())
-            results = self.model(face_crop, conf=conf, verbose=verbose)
+            # Executa inferência com imgsz configurado
+            results = self.model(face_crop, conf=conf, verbose=verbose, imgsz=self.image_size)
             
             # Valida resultados
             if len(results) == 0 or results[0].boxes is None or len(results[0].boxes) == 0:
@@ -259,8 +261,8 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
             # Usa a menor dimensão para evitar padding excessivo
             normalized_crops = self._normalize_batch_sizes(face_crops)
             
-            # YOLO aceita lista de imagens para batch inference (sem device parameter)
-            results = self.model(normalized_crops, conf=conf, verbose=verbose)
+            # YOLO aceita lista de imagens para batch inference com imgsz configurado
+            results = self.model(normalized_crops, conf=conf, verbose=verbose, imgsz=self.image_size)
             
             batch_landmarks = []
             

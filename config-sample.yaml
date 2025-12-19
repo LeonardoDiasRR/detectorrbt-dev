@@ -3,8 +3,6 @@
 performance:
   # Processa detecções a cada N frames (1 = todos os frames)
   detection_skip_frames: 2
-  # Resolução de inferência (640, 1280). Menor = mais rápido
-  inference_size: 1280
 
 # Configuração do modelo de detecção de faces
 modelo_deteccao:
@@ -28,6 +26,8 @@ modelo_deteccao:
   cpu_batch_size: 1
   # Tamanho do batch para inferência em GPU (padrão: 32)
   gpu_batch_size: 32
+  # Tamanho da imagem para inferência (640 ou 1280). Maior = mais preciso mas mais lento
+  image_size: 640
 
 # Configuração do modelo de landmarks faciais
 modelo_landmark:
@@ -43,6 +43,8 @@ modelo_landmark:
   precision: "FP16"
   # Device para inferência: "cpu" ou "cuda:N" (ex: cuda:0, cuda:0,1)
   device: "cpu"
+  # Tamanho da imagem para inferência (640 ou 1280). Maior = mais preciso mas mais lento
+  image_size: 640
 
 # Configurações de rastreamento (tracking)
 tracking:

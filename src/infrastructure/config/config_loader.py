@@ -24,8 +24,7 @@ from .settings import (
     QueuesConfig,
     CameraMonitoringConfig,
     CameraConfig,
-    FaceQualityConfig,
-    PerformanceConfig
+    FaceQualityConfig
 )
 
 
@@ -98,7 +97,8 @@ class ConfigLoader:
             precision=yaml_config.get("modelo_deteccao", {}).get("precision", "FP16"),
             device=yaml_config.get("modelo_deteccao", {}).get("device", "cpu"),
             cpu_batch_size=yaml_config.get("modelo_deteccao", {}).get("cpu_batch_size", 1),
-            gpu_batch_size=yaml_config.get("modelo_deteccao", {}).get("gpu_batch_size", 32)
+            gpu_batch_size=yaml_config.get("modelo_deteccao", {}).get("gpu_batch_size", 32),
+            image_size=yaml_config.get("modelo_deteccao", {}).get("image_size", 640)
         )
         
         landmark_config = LandmarkConfig(
@@ -107,7 +107,8 @@ class ConfigLoader:
             iou_threshold=yaml_config.get("modelo_landmark", {}).get("iou_threshold", 0.75),
             backend=yaml_config.get("modelo_landmark", {}).get("backend", "pytorch"),
             precision=yaml_config.get("modelo_landmark", {}).get("precision", "FP16"),
-            device=yaml_config.get("modelo_landmark", {}).get("device", "cpu")
+            device=yaml_config.get("modelo_landmark", {}).get("device", "cpu"),
+            image_size=yaml_config.get("modelo_landmark", {}).get("image_size", 640)
         )
         
         bytetrack_config = ByteTrackConfig(
@@ -165,13 +166,6 @@ class ConfigLoader:
             peso_proporcao=float(yaml_config.get("qualidade_face", {}).get("proporcao_bbox", 1.0))
         )
         
-
-        # Configuração de Performance
-        performance_config = PerformanceConfig(
-            inference_size=yaml_config.get("performance", {}).get("inference_size", 640),
-            detection_skip_frames=yaml_config.get("performance", {}).get("detection_skip_frames", 1)
-        )
-        
         # Carrega câmeras do YAML
         cameras = [
             CameraConfig(
@@ -197,6 +191,5 @@ class ConfigLoader:
             queues=queues_config,
             camera_monitoring=camera_monitoring_config,
             face_quality=face_quality_config,
-            performance=performance_config,
             cameras=cameras
         )

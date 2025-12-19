@@ -29,6 +29,7 @@ class YOLOConfig:
     device: str = "cpu"       # cpu ou cuda:N (ex: cuda:0, cuda:0,1)
     cpu_batch_size: int = 1
     gpu_batch_size: int = 32
+    image_size: int = 640     # 640 ou 1280
     
     def get_batch_size(self) -> int:
         """
@@ -52,6 +53,7 @@ class LandmarkConfig:
     backend: str = "pytorch"  # pytorch, tensorrt ou openvino
     precision: str = "FP16"   # FP32 ou FP16
     device: str = "cpu"       # cpu ou cuda:N (ex: cuda:0, cuda:0,1)
+    image_size: int = 640     # 640 ou 1280
 
 
 @dataclass
@@ -138,13 +140,6 @@ class FaceQualityConfig:
 
 
 @dataclass
-class PerformanceConfig:
-    """Configuração de otimizações de performance."""
-    inference_size: int = 640
-    detection_skip_frames: int = 1
-
-
-@dataclass
 class AppSettings:
     """
     Configurações completas da aplicação.
@@ -163,5 +158,4 @@ class AppSettings:
     queues: QueuesConfig
     camera_monitoring: CameraMonitoringConfig
     face_quality: FaceQualityConfig
-    performance: PerformanceConfig
     cameras: List[CameraConfig]
