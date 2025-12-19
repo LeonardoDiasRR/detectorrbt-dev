@@ -325,8 +325,29 @@ class ProcessFaceDetectionUseCase:
             if bbox_area < self.track_validation_service.min_bbox_area:
                 continue
             
-            # Crop da face
-            face_crop = frame_vo.ndarray_readonly[y1:y2, x1:x2]
+            # EXPANSÃO DO BBOX: Aumenta 20% mantendo o centro e limites do frame
+            # Calcula o centro do bbox
+            center_x = (x1 + x2) / 2.0
+            center_y = (y1 + y2) / 2.0
+            
+            # Expande dimensões em 20%
+            expanded_width = bbox_width * 1.2
+            expanded_height = bbox_height * 1.2
+            
+            # Calcula novas coordenadas mantendo o centro
+            x1_expanded = int(center_x - expanded_width / 2.0)
+            y1_expanded = int(center_y - expanded_height / 2.0)
+            x2_expanded = int(center_x + expanded_width / 2.0)
+            y2_expanded = int(center_y + expanded_height / 2.0)
+            
+            # Garante limites dentro do frame
+            x1_expanded = max(0, x1_expanded)
+            y1_expanded = max(0, y1_expanded)
+            x2_expanded = min(w, x2_expanded)
+            y2_expanded = min(h, y2_expanded)
+            
+            # Crop da face com bbox expandido
+            face_crop = frame_vo.ndarray_readonly[y1_expanded:y2_expanded, x1_expanded:x2_expanded]
             
             if face_crop.size > 0:
                 face_crops.append(face_crop)
