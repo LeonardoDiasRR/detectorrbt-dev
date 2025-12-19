@@ -9,6 +9,8 @@ from pathlib import Path
 
 from src.domain.services.landmarks_model_interface import ILandmarksModel
 from src.infrastructure.model.landmarks_yolo_model_adapter import LandmarksYOLOModelAdapter
+from src.infrastructure.model.landmarks_tensorrt_model_adapter import LandmarksTensorRTModelAdapter
+from src.infrastructure.model.landmarks_openvino_model_adapter import LandmarksOpenVINOModelAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -53,19 +55,21 @@ class LandmarksModelFactory:
         else:
             backend_detected = backend.lower()
         
-        # FALLBACK: TensorRT e OpenVINO ainda não suportados para landmarks
-        # Usa PyTorch automaticamente com aviso no log
-        if backend_detected in ['tensorrt', 'openvino']:
-            logger.warning(
-                f"⚠️ Backend '{backend_detected}' não suportado para landmarks. "
-                f"Usando PyTorch como fallback. "
-                f"(TensorRT e OpenVINO para landmarks serão implementados em futuras versões)"
-            )
-            backend_detected = 'yolo'
-        
-        # Cria adapter apropriado
+        # Cria adapter apropriado baseado no backend
         if backend_detected == 'yolo':
             return LandmarksYOLOModelAdapter(model_path, device, image_size)
+        
+        elif backend_detected == 'tensorrt':
+            return LandmarksTensorRTModelAdapter(model_path, device, image_size)
+        
+        elif backend_detected == 'openvino':
+            return LandmarksOpenVINOModelAdapter(model_path, device, image_size)
+        
+        else:
+            raise ValueError(
+                f"Backend '{backend}' não suportado para landmarks. "
+                f"Suportados: pytorch/yolo, tensorrt, openvino"
+            )
     
     @staticmethod
     def _detect_backend(model_file: Path) -> str:
@@ -102,8 +106,8 @@ class LandmarksModelFactory:
             
             backend = LandmarksModelFactory._detect_backend(model_file)
             
-            # Por enquanto, apenas YOLO é suportado
-            return backend == 'yolo'
+            # Suporta YOLO, TensorRT e OpenVINO
+            return backend in ['yolo', 'tensorrt', 'openvino']
         
         except Exception:
             return False
