@@ -24,7 +24,7 @@ modelo_deteccao:
   # IOU threshold para NMS (Non-Maximum Suppression)
   iou_threshold: 0.55
   # Modelo de rastreamento (bytetrack.yaml ou deep_sort.yaml)
-  tracker: "bytetrack.yaml"
+  tracker: "custom_track.yaml"  # Padrão "bytetrack.yaml"
   # Persistir tracks entre streams (false = reseta IDs a cada reinício)
   persist: false
 
