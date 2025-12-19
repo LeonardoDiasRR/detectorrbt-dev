@@ -77,6 +77,44 @@ IF NOT EXIST config.yaml (
     echo ℹ️ config.yaml já existe - mantendo arquivo atual
 )
 
+echo.
+echo ➡️ Detectando GPU CUDA para ajuste automático de configuração...
+%VENV_DIR%\Scripts\python.exe -c "import torch; exit(0 if torch.cuda.is_available() else 1)" 2>nul
+IF ERRORLEVEL 1 (
+    echo ℹ️ GPU CUDA não detectada. Mantendo config.yaml com configurações CPU padrão
+) ELSE (
+    echo ✅ GPU CUDA detectada. Ajustando config.yaml para usar GPU...
+    %VENV_DIR%\Scripts\python.exe << 'PYTHON_SCRIPT'
+import yaml
+import sys
+
+try:
+    with open('config.yaml', 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    
+    # Ajusta device para GPU em modelo_deteccao
+    if 'modelo_deteccao' in config:
+        config['modelo_deteccao']['device'] = 'cuda:0'
+        print("  • modelo_deteccao.device → cuda:0")
+    
+    # Ajusta device para GPU em modelo_landmark
+    if 'modelo_landmark' in config:
+        config['modelo_landmark']['device'] = 'cuda:0'
+        print("  • modelo_landmark.device → cuda:0")
+    
+    # Salva as alterações
+    with open('config.yaml', 'w', encoding='utf-8') as f:
+        yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+    
+    print("✅ config.yaml atualizado para usar GPU (cuda:0)")
+    
+except Exception as e:
+    print(f"⚠️ Erro ao modificar config.yaml: {e}")
+    print("   Config permanecerá com configurações padrão (CPU)")
+    sys.exit(0)
+PYTHON_SCRIPT
+)
+
 IF NOT EXIST .env (
     IF EXIST .env-exemplo (
         copy .env-exemplo .env >nul

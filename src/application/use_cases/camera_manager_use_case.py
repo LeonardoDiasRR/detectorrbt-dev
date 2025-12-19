@@ -199,9 +199,9 @@ class CameraManager:
             return
         
         try:
-            # Todas as câmeras usam o mesmo device (YOLO gerencia distribuição)
-            # gpu_devices é string no formato "0", "0,1", etc
-            device = self.gpu_devices
+            # Todas as câmeras usam o device configurado
+            # device vem de settings.yolo (pode ser "cpu" ou "cuda:N")
+            device = self.settings.yolo.device
             
             # CRITICAL: Lock para criação sequencial de models (TensorRT thread-safety)
             with self.model_creation_lock:
@@ -229,7 +229,7 @@ class CameraManager:
             if self.image_save_service_factory and self.settings.storage.save_images:
                 image_save_service = self.image_save_service_factory(camera_name=camera.camera_name.value())
             
-            # gpu_devices é string: "0", "0,1", "0,1,2" - passa direto para ProcessFaceDetectionUseCase
+            # Device vem de settings.yolo
             yolo_device = device
             
             # Cria processor
