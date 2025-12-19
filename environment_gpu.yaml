@@ -4,57 +4,67 @@ channels:
   - pytorch
   - nvidia
   - conda-forge
+  - defaults
 
 dependencies:
-  # ===============================
-  # Python (estável p/ GPU)
-  # ===============================
-  - python=3.12
-
-  # ===============================
-  # PyTorch + CUDA
-  # ===============================
-  - pytorch>=2.1
-  - torchvision>=0.16
-  - pytorch-cuda=12.1
-
-  # ===============================
-  # NumPy / SciPy / OpenCV
-  # ===============================
-  - numpy>=1.24
-  - scipy>=1.10
-  - opencv
-
-  # ===============================
-  # Utilitários
-  # ===============================
-  - pyyaml>=6.0
-  - requests>=2.31.0
-  - urllib3>=2.0.0
-  - python-dotenv>=1.0.0
-  - tzlocal>=5.0
-  - filterpy>=1.4.5
-  - lap>=0.5.12
-  - tensorboard>=2.13.0
-
-  # ===============================
-  # OpenVINO (runtime via Conda)
-  # ===============================
-  - openvino>=2023.0
-
-  # ===============================
-  # ONNX base
-  # ===============================
-  - onnx>=1.12,<2.0
-
-  # ===============================
-  # Pip
-  # ===============================
+  # =========================
+  # Core
+  # =========================
+  - python=3.10
   - pip
+
+  # =========================
+  # Scientific stack
+  # =========================
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - pillow
+  - pyyaml
+  - tqdm
+  - requests
+
+  # =========================
+  # PyTorch GPU
+  # =========================
+  - pytorch
+  - torchvision
+  - pytorch-cuda=12.4
+
+  # =========================
+  # ONNX core
+  # =========================
+  - onnx
+
+  # =========================
+  # NVIDIA utils
+  # =========================
+  - nvidia-ml-py
+  - gpustat
+
+  # =========================
+  # Pip-only (OBRIGATÓRIO)
+  # =========================
   - pip:
+      # YOLO
       - ultralytics>=8.0.0
-      - openvino-dev>=2023.0.0
-      - onnxslim>=0.1.71
+
+      # TensorRT (única forma possível)
+      - tensorrt-cu12>=10.0,<11
+
+      # ONNX Runtime GPU
       - onnxruntime-gpu>=1.15.1,<2.0.0
-      - nvidia-ml-py>=12.535.133
-      - gpustat>=1.1.1
+
+      # ONNX tools
+      - onnxsim
+      - onnxslim>=0.1.71
+
+      # OpenVINO
+      - openvino-dev>=2023.0.0
+
+      # dotenv (nome correto no pip)
+      - python-dotenv
+
+      # Lap
+      - lap

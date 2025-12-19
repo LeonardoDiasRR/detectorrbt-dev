@@ -93,34 +93,26 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
             return None
         
         try:
-            # Determina device a usar (string format)
+            # Determina device a usar
             inference_device = device if device is not None else self.device
             
-            # Se device for lista, pega primeira GPU (PyTorch to() não aceita lista)
+            # Se device for lista, pega primeira GPU
             if isinstance(inference_device, (list, tuple)):
                 inference_device = str(inference_device[0])
             else:
                 inference_device = str(inference_device)
             
-            # Se device contém vírgula (ex: "0,1"), pega primeira GPU
+            # Se device contém vírgula, pega primeira GPU
             if ',' in inference_device:
                 inference_device = inference_device.split(',')[0].strip()
             
-            # Converte para formato PyTorch válido
-            # "0" → "cuda:0", "1" → "cuda:1", "cpu" → "cpu", "cuda:0" → "cuda:0"
+            # Converte para formato YOLO válido
             if inference_device and inference_device != "cpu":
-                if not inference_device.startswith("cuda:"):
-                    inference_device = f"cuda:{inference_device}"
+                if not inference_device.startswith("cuda"):
+                    inference_device = int(inference_device)  # YOLO aceita int para GPU
             
-            # Move modelo para device especificado
-            if inference_device is not None:
-                try:
-                    self.model.to(inference_device)
-                except Exception as e:
-                    logger.warning(f"Falha ao mover modelo para device {inference_device}: {e}")
-            
-            # Executa inferência com imgsz configurado
-            results = self.model(face_crop, conf=conf, verbose=verbose, imgsz=self.image_size)
+            # Executa inferência passando device como parâmetro
+            results = self.model(face_crop, conf=conf, verbose=verbose, imgsz=self.image_size, device=inference_device)
             
             # Valida resultados
             if len(results) == 0 or results[0].boxes is None or len(results[0].boxes) == 0:
@@ -192,35 +184,33 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
             return []
         
         try:
-            # Determina device a usar (string format)
+            # Determina device a usar
             inference_device = device if device is not None else self.device
             
-            # Se device for lista, pega primeira GPU (PyTorch to() não aceita lista)
+            # Se device for lista, pega primeira GPU
             if isinstance(inference_device, (list, tuple)):
                 inference_device = str(inference_device[0])
             else:
                 inference_device = str(inference_device)
             
-            # Se device contém vírgula (ex: "0,1"), pega primeira GPU
+            # Se device contém vírgula, pega primeira GPU
             if ',' in inference_device:
                 inference_device = inference_device.split(',')[0].strip()
             
-            # Converte para formato PyTorch válido
-            # "0" → "cuda:0", "1" → "cuda:1", "cpu" → "cpu", "cuda:0" → "cuda:0"
+            # Converte para formato YOLO válido
             if inference_device and inference_device != "cpu":
-                if not inference_device.startswith("cuda:"):
-                    inference_device = f"cuda:{inference_device}"
+                if not inference_device.startswith("cuda"):
+                    inference_device = int(inference_device)  # YOLO aceita int para GPU
             
-            # Move modelo para device especificado
-            if inference_device is not None:
-                try:
-                    self.model.to(inference_device)
-                except Exception as e:
-                    logger.warning(f"Falha ao mover modelo para device {inference_device}: {e}")
-            
-            # Processa crops diretamente sem redimensionamento
-            # YOLO gerencia automaticamente o redimensionamento via imgsz
-            results = self.model(face_crops, conf=conf, verbose=verbose, imgsz=self.image_size)
+            # Processa crops passando device como parâmetro
+            # em vez de chamar .to() que pode corromper o predictor
+            results = self.model(
+                face_crops, 
+                conf=conf, 
+                verbose=verbose, 
+                imgsz=self.image_size,
+                device=inference_device
+            )
             
             batch_landmarks = []
             
