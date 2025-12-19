@@ -27,7 +27,7 @@ modelo_deteccao:
   # Tamanho do batch para inferência em GPU (padrão: 32)
   gpu_batch_size: 32
   # Tamanho da imagem para inferência (640 ou 1280). Maior = mais preciso mas mais lento
-  image_size: 640
+  image_size: 1280
 
 # Configuração do modelo de landmarks faciais
 modelo_landmark:
@@ -43,8 +43,8 @@ modelo_landmark:
   precision: "FP16"
   # Device para inferência: "cpu" ou "cuda:N" (ex: cuda:0, cuda:0,1)
   device: "cpu"
-  # Tamanho da imagem para inferência (640 ou 1280). Maior = mais preciso mas mais lento
-  image_size: 640
+  # Tamanho da imagem para inferência para thumbnail (32 ou 64). Maior = mais preciso mas mais lento
+  image_size: 32
 
 # Configurações de rastreamento (tracking)
 tracking:
