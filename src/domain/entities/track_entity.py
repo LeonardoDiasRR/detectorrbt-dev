@@ -75,13 +75,15 @@ class Track:
         if self._event_count == 0:
             return False
         
-        # Track com até 3 eventos não tem referência para movimento, considera com movimento
-        if self._event_count <= 3:
+        # Track com 1 evento não tem referência para movimento, considera com movimento
+        if self._event_count == 1:
             return True
         
-        # Calcula percentual de eventos com movimento
-        movement_percentage = self._movement_count / self._event_count
-        return movement_percentage >= self._min_movement_percentage
+        # # Calcula percentual de eventos com movimento
+        # movement_percentage = self._movement_count / self._event_count
+        # return movement_percentage >= self._min_movement_percentage
+
+        return self._movement_count > 0
 
     @property
     def is_empty(self) -> bool:
