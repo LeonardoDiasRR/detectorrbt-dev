@@ -110,5 +110,3 @@ compression:
 findface:
   # Prefixo dos grupos de câmeras no FindFace
   group_prefix: "TESTE"
-
-
