@@ -88,7 +88,7 @@ class LandmarksOpenVINOModelAdapter(ILandmarksModel):
         try:
             # OpenVINO device já compilado no modelo, não alteramos aqui
             # Executa inferência com imgsz configurado
-            results = self.model(face_crop, conf=conf, verbose=False, imgsz=self.image_size)
+            results = self.model(face_crop, conf=conf, verbose=False, imgsz=self.image_size, classes=[0])
             
             # Valida resultados
             if len(results) == 0 or results[0].boxes is None or len(results[0].boxes) == 0:
@@ -139,7 +139,7 @@ class LandmarksOpenVINOModelAdapter(ILandmarksModel):
         try:
             # Processa crops diretamente sem redimensionamento
             # YOLO gerencia automaticamente o redimensionamento via imgsz
-            results = self.model(face_crops, conf=conf, verbose=False, imgsz=self.image_size)
+            results = self.model(face_crops, conf=conf, verbose=False, imgsz=self.image_size, classes=[0])
             
             # Processa resultados
             landmarks_list = []

@@ -122,8 +122,9 @@ class TensorRTModelAdapter(IDetectionModel):
             stream=stream,
             batch=batch,
             verbose=verbose,
-            imgsz=imgsz
-        )
+            imgsz=imgsz,
+            classes=[0]
+        ) # type: ignore
     
     def get_model_info(self) -> dict:
         """

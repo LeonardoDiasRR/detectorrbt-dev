@@ -111,6 +111,7 @@ class YOLOModelAdapter(IDetectionModel):
         # NÃO adiciona device ao track_kwargs pois track() não aceita esse parâmetro
         # Device é gerenciado via model.to(device) acima
         
+        track_kwargs["classes"] = [0]
         return self._model.track(**track_kwargs)
     
     def get_model_info(self) -> dict:

@@ -112,7 +112,7 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
                     inference_device = int(inference_device)  # YOLO aceita int para GPU
             
             # Executa inferência passando device como parâmetro
-            results = self.model(face_crop, conf=conf, verbose=verbose, imgsz=self.image_size, device=inference_device)
+            results = self.model(face_crop, conf=conf, verbose=verbose, imgsz=self.image_size, device=inference_device, classes=[0])
             
             # Valida resultados
             if len(results) == 0 or results[0].boxes is None or len(results[0].boxes) == 0:
@@ -209,7 +209,8 @@ class LandmarksYOLOModelAdapter(ILandmarksModel):
                 conf=conf, 
                 verbose=verbose, 
                 imgsz=self.image_size,
-                device=inference_device
+                device=inference_device,
+                classes=[0]
             )
             
             batch_landmarks = []
