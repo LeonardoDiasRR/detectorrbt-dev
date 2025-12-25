@@ -1,4 +1,4 @@
-name: detectorrbt
+name: detectorrbt-dev
 
 channels:
   - pytorch
